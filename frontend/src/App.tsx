@@ -8,7 +8,8 @@ import { WorkflowDetailPanel } from "./pages/board/WorkflowDetailPanel";
 import { ChatPage } from "./pages/ChatPage";
 import { SettingsPage } from "./pages/SettingsPage";
 import { TasksPage } from "./pages/TasksPage";
-import { startSocket } from "./events/socket";
+import { setAuthMode, startSocket } from "./events/socket";
+import { useFeatures } from "./lib/queries";
 import { ApiError } from "./lib/api";
 
 const queryClient = new QueryClient({
@@ -25,6 +26,14 @@ const queryClient = new QueryClient({
   },
 });
 
+function AuthModeSync() {
+  const { data: features } = useFeatures();
+  useEffect(() => {
+    if (features) setAuthMode(features.auth);
+  }, [features]);
+  return null;
+}
+
 export default function App() {
   useEffect(() => {
     startSocket(queryClient);
@@ -32,6 +41,7 @@ export default function App() {
 
   return (
     <QueryClientProvider client={queryClient}>
+      <AuthModeSync />
       <BrowserRouter>
         <TokenGate />
         <AppShell>

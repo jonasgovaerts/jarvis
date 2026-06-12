@@ -95,12 +95,34 @@ def test_features_reflect_mail_toggle(monkeypatch):
     from gateway import config
 
     with client() as c:
-        assert c.get("/api/features").json() == {"mail": True}
+        assert c.get("/api/features").json() == {"mail": True, "auth": "token"}
 
     monkeypatch.setenv("MAIL_ENABLED", "false")
     config.settings.cache_clear()
     try:
         with client() as c:
-            assert c.get("/api/features").json() == {"mail": False}
+            assert c.get("/api/features").json() == {"mail": False, "auth": "token"}
+    finally:
+        config.settings.cache_clear()
+
+
+def test_forward_auth_mode(monkeypatch):
+    from gateway import config
+
+    monkeypatch.setenv("AUTH_MODE", "forward-auth")
+    monkeypatch.setenv("JARVIS_TOKEN", "sekrit")
+    config.settings.cache_clear()
+    try:
+        with client() as c:
+            # Identity header from the authentik outpost is accepted.
+            ok = c.get("/api/workflows", headers={"X-authentik-username": "jonas"})
+            assert ok.status_code == 200
+            # The bearer token keeps working (port-forward access).
+            ok = c.get("/api/workflows", headers={"Authorization": "Bearer sekrit"})
+            assert ok.status_code == 200
+            # No credentials at all is rejected.
+            assert c.get("/api/workflows").status_code == 401
+            # Features stays public so the SPA can discover the auth mode.
+            assert c.get("/api/features").json() == {"mail": True, "auth": "forward-auth"}
     finally:
         config.settings.cache_clear()

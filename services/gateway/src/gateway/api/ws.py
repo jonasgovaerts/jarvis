@@ -15,7 +15,11 @@ PING_INTERVAL = 25
 
 @router.websocket("/ws")
 async def websocket_endpoint(ws: WebSocket, token: str = "") -> None:
-    expected = settings().jarvis_token
+    cfg = settings()
+    if cfg.auth_mode == "forward-auth" and ws.headers.get("x-authentik-username"):
+        expected = ""  # identity asserted by the forwardAuth middleware
+    else:
+        expected = cfg.jarvis_token
     if expected and token != expected:
         await ws.close(code=4401)
         return

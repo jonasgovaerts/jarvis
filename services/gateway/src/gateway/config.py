@@ -6,6 +6,11 @@ from jarvis_core.settings import JarvisSettings
 class GatewaySettings(JarvisSettings):
     service_name: str = "gateway"
 
+    # "token": static bearer (single-user default). "forward-auth": trust the
+    # X-authentik-username header set by the traefik forwardAuth middleware
+    # (authentik outpost); the bearer token keeps working for port-forward use.
+    auth_mode: str = "token"
+
     # Static bearer token for the single-user dashboard; empty disables auth
     # (local dev only — in-cluster it always comes from a Secret).
     jarvis_token: str = ""

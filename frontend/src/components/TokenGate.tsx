@@ -2,6 +2,7 @@ import { useState, type FormEvent } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { KeyRound } from "lucide-react";
 import { setToken, useAuthState } from "../lib/token";
+import { useFeatures } from "../lib/queries";
 
 /**
  * Full-screen prompt shown on first run (no token stored) or after a 401.
@@ -10,7 +11,11 @@ export function TokenGate() {
   const { needsToken, unauthorized } = useAuthState();
   const [value, setValue] = useState("");
   const queryClient = useQueryClient();
+  const { data: features } = useFeatures();
 
+  // Behind the authentik forwardAuth middleware the session cookie is the
+  // credential — a token prompt would be pure confusion.
+  if (features?.auth === "forward-auth" && !unauthorized) return null;
   if (!needsToken) return null;
 
   const submit = (event: FormEvent) => {

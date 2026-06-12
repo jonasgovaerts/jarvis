@@ -1,14 +1,16 @@
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter
 
-from gateway.api.deps import require_token
 from gateway.config import settings
 from jarvis_core.dto import Features
 
-router = APIRouter(prefix="/api/features", dependencies=[Depends(require_token)])
+# Deliberately unauthenticated: the SPA needs the auth mode before it can
+# decide whether to prompt for a token. Exposes feature booleans only.
+router = APIRouter(prefix="/api/features")
 
 
 @router.get("")
 async def get_features() -> Features:
-    return Features(mail=settings().mail_enabled)
+    cfg = settings()
+    return Features(mail=cfg.mail_enabled, auth=cfg.auth_mode)

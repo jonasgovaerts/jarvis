@@ -17,9 +17,11 @@ interface RequestOptions {
 
 /** Minimal authenticated JSON fetch wrapper for the gateway API. */
 export async function api<T>(path: string, options: RequestOptions = {}): Promise<T> {
-  const headers: Record<string, string> = {
-    Authorization: `Bearer ${getToken()}`,
-  };
+  const headers: Record<string, string> = {};
+  const token = getToken();
+  if (token !== "") {
+    headers.Authorization = `Bearer ${token}`;
+  }
   let body: string | undefined;
   if (options.body !== undefined) {
     headers["Content-Type"] = "application/json";

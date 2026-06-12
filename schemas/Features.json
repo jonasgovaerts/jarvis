@@ -5,6 +5,11 @@
       "default": true,
       "title": "Mail",
       "type": "boolean"
+    },
+    "auth": {
+      "default": "token",
+      "title": "Auth",
+      "type": "string"
     }
   },
   "title": "Features",
