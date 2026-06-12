@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import { NavLink } from "react-router";
 import { LayoutDashboard, ListChecks, MessageSquare, Settings } from "lucide-react";
+import { Clock } from "./Clock";
 import { ConnectionOrb } from "./ConnectionOrb";
 
 const NAV_ITEMS = [
@@ -41,7 +42,8 @@ export function AppShell({ children }: { children: ReactNode }) {
             </NavLink>
           ))}
         </nav>
-        <div className="border-t border-cyan-500/15 p-4">
+        <div className="flex items-center justify-between border-t border-cyan-500/15 p-4">
+          <Clock />
           <ConnectionOrb />
         </div>
       </aside>
