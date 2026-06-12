@@ -114,6 +114,9 @@ func (r *WorkItemReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 	}
 
 	if wi.Status.Phase.IsTerminal() {
+		if action := wi.Annotations[jarvisv1alpha1.AnnotationAction]; action != "" {
+			return r.handleRequestedAction(ctx, orig, wi, nil, action)
+		}
 		return r.reconcileTerminal(ctx, wi)
 	}
 
@@ -138,6 +141,12 @@ func (r *WorkItemReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 		if err := r.Update(ctx, wi); err != nil {
 			return ctrl.Result{}, err
 		}
+	}
+
+	// Card actions from the dashboard arrive as an annotation; handle once,
+	// then clear it.
+	if action := wi.Annotations[jarvisv1alpha1.AnnotationAction]; action != "" {
+		return r.handleRequestedAction(ctx, orig, wi, repo, action)
 	}
 
 	suspended := wi.Spec.Suspend || repo.Spec.Suspend
@@ -660,6 +669,76 @@ func repoLabel(wi *jarvisv1alpha1.WorkItem) string {
 		return name
 	}
 	return wi.Spec.RepositoryRef.Name
+}
+
+// handleRequestedAction executes a dashboard card action and clears the
+// annotation. Supported: cancel (→ Skipped), retry (Failed → fresh restart),
+// approve (AwaitingMerge → squash-merge the PR).
+func (r *WorkItemReconciler) handleRequestedAction(ctx context.Context, orig, wi *jarvisv1alpha1.WorkItem, repo *jarvisv1alpha1.ManagedRepository, action string) (ctrl.Result, error) {
+	log := logf.FromContext(ctx)
+	if err := r.clearAction(ctx, wi); err != nil {
+		return ctrl.Result{}, err
+	}
+
+	switch action {
+	case "cancel":
+		if wi.Status.Phase.IsTerminal() {
+			return ctrl.Result{}, nil
+		}
+		return r.transition(ctx, orig, wi, jarvisv1alpha1.PhaseSkipped, "cancelled from the dashboard")
+
+	case "retry":
+		if wi.Status.Phase != jarvisv1alpha1.PhaseFailed {
+			log.Info("retry ignored: workitem not Failed", "phase", wi.Status.Phase)
+			return ctrl.Result{}, nil
+		}
+		wi.Status = jarvisv1alpha1.WorkItemStatus{
+			Phase:              jarvisv1alpha1.PhasePending,
+			StartedAt:          ptrTime(metav1.Now()),
+			ObservedGeneration: wi.Generation,
+		}
+		if err := r.Status().Patch(ctx, wi, client.MergeFrom(orig)); err != nil {
+			return ctrl.Result{}, err
+		}
+		r.Recorder.Eventf(wi, nil, corev1.EventTypeNormal, "Retried", "Reconcile", "restarted from the dashboard")
+		return ctrl.Result{Requeue: true}, nil
+
+	case "approve":
+		if wi.Status.Phase != jarvisv1alpha1.PhaseAwaitingMerge || wi.Status.Development == nil || repo == nil {
+			log.Info("approve ignored", "phase", wi.Status.Phase)
+			return ctrl.Result{}, nil
+		}
+		secret := &corev1.Secret{}
+		key := client.ObjectKey{Namespace: repo.Namespace, Name: repo.Spec.CredentialsSecretRef.Name}
+		if err := r.Get(ctx, key, secret); err != nil {
+			return ctrl.Result{}, err
+		}
+		mergeSHA, err := forge.MergePR(ctx, string(secret.Data["token"]),
+			repo.Spec.Owner, repo.Spec.Name, wi.Status.Development.PRNumber)
+		if err != nil {
+			log.Error(err, "approve: merge failed")
+			r.Recorder.Eventf(wi, nil, corev1.EventTypeWarning, "MergeFailed", "Reconcile", "%v", err)
+			return ctrl.Result{RequeueAfter: awaitingMergeRequeue}, nil
+		}
+		if wi.Status.CI == nil {
+			wi.Status.CI = &jarvisv1alpha1.CIResult{Status: "Passed"}
+		}
+		wi.Status.CI.Merged = true
+		wi.Status.CI.MergeSHA = mergeSHA
+		setCond(wi, jarvisv1alpha1.CondMerged, metav1.ConditionTrue, "Merged", mergeSHA)
+		return r.transition(ctx, orig, wi, jarvisv1alpha1.PhaseRolloutCheck, "merged via dashboard approval")
+
+	default:
+		log.Info("unknown requested action", "action", action)
+		return ctrl.Result{}, nil
+	}
+}
+
+// clearAction removes the annotation so the action fires exactly once.
+func (r *WorkItemReconciler) clearAction(ctx context.Context, wi *jarvisv1alpha1.WorkItem) error {
+	patched := wi.DeepCopy()
+	delete(patched.Annotations, jarvisv1alpha1.AnnotationAction)
+	return r.Patch(ctx, patched, client.MergeFrom(wi))
 }
 
 // SetupWithManager sets up the controller with the Manager.

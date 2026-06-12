@@ -44,6 +44,20 @@ Services run on the host with hot reload (`make dev-gateway`, ...); only statefu
 infrastructure runs in containers. The operator runs against your kubeconfig context
 with `make -C operator run`.
 
+## Cluster bootstrap (one-time, manual)
+
+```bash
+kubectl config current-context        # MUST be your homelab cluster
+kubectl apply -f deploy/argocd/jarvis-root.yaml
+make backup-sealing-key               # immediately; store in a password manager
+```
+
+Then seal the secrets the apps expect (`make seal`): `litellm-keys` +
+`gateway-auth`/`jarvis-db` (jarvis-platform / jarvis-system), `discord-webhook`,
+per-repo `repo-token-*` (namespace jarvis), and `gmail-credentials` via
+`make google-auth`. ArgoCD tracks `main`; merging `development` → `main`
+triggers builds + deploy-bump + sync.
+
 ## Conventions
 
 - **Events**: NATS subjects `jarvis.<domain>.<entity>.<verb>`, CloudEvents-lite JSON

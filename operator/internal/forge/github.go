@@ -24,6 +24,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"strings"
 	"time"
 )
 
@@ -60,4 +61,33 @@ func PRMergeState(ctx context.Context, token, owner, repo string, number int) (b
 		return false, "", err
 	}
 	return pr.Merged, pr.MergeCommitSHA, nil
+}
+
+// MergePR squash-merges a pull request and returns the merge commit SHA.
+func MergePR(ctx context.Context, token, owner, repo string, number int) (string, error) {
+	url := fmt.Sprintf("%s/repos/%s/%s/pulls/%d/merge", BaseURL, owner, repo, number)
+	body := strings.NewReader(`{"merge_method":"squash"}`)
+	req, err := http.NewRequestWithContext(ctx, http.MethodPut, url, body)
+	if err != nil {
+		return "", err
+	}
+	req.Header.Set("Authorization", "Bearer "+token)
+	req.Header.Set("Accept", "application/vnd.github+json")
+	req.Header.Set("X-GitHub-Api-Version", "2022-11-28")
+
+	resp, err := httpClient.Do(req)
+	if err != nil {
+		return "", err
+	}
+	defer func() { _ = resp.Body.Close() }()
+	if resp.StatusCode != http.StatusOK {
+		return "", fmt.Errorf("github merge pulls/%d: HTTP %d", number, resp.StatusCode)
+	}
+	var result struct {
+		SHA string `json:"sha"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		return "", err
+	}
+	return result.SHA, nil
 }
