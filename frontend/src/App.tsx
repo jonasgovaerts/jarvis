@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { BrowserRouter, Navigate, Route, Routes, useNavigate } from "react-router";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { AppShell } from "./components/AppShell";
@@ -43,13 +43,27 @@ function OidcBoot() {
 function AuthCallback() {
   const navigate = useNavigate();
   const { data: features } = useFeatures();
+  const [error, setError] = useState("");
   useEffect(() => {
     if (features?.auth !== "oidc" || features.oidcIssuer === "") return;
     initOidc(features.oidcIssuer, features.oidcClientId);
     completeSignIn()
       .then((path) => navigate(path, { replace: true }))
-      .catch(() => navigate("/", { replace: true }));
+      .catch((err: unknown) => setError(err instanceof Error ? err.message : String(err)));
   }, [features, navigate]);
+  if (error !== "") {
+    return (
+      <div className="grid h-full place-items-center">
+        <div className="max-w-md text-center">
+          <p className="font-mono text-xs uppercase tracking-[0.3em] text-danger">Sign-in failed</p>
+          <p className="mt-3 text-sm text-slate-400">{error}</p>
+          <p className="mt-2 text-xs text-slate-600">
+            Check the authentik provider: public client type, redirect URI, scopes.
+          </p>
+        </div>
+      </div>
+    );
+  }
   return (
     <div className="grid h-full place-items-center font-mono text-xs uppercase tracking-[0.3em] text-slate-500">
       Completing sign-in…

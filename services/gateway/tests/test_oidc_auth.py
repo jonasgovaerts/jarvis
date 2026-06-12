@@ -9,7 +9,7 @@ from cryptography.hazmat.primitives.asymmetric import rsa
 from gateway import auth, config
 
 KEY = rsa.generate_private_key(public_exponent=65537, key_size=2048)
-ISSUER = "https://authentik.jonasg.be/application/o/jarvis"
+ISSUER = "https://authentik.jonasg.be/application/o/jarvis/"  # trailing slash, as authentik issues
 
 
 class FakeSigningKey:
@@ -39,9 +39,11 @@ def oidc_mode(monkeypatch):
     monkeypatch.setenv("OIDC_CLIENT_ID", "jarvis")
     monkeypatch.setenv("JARVIS_TOKEN", "sekrit")
     monkeypatch.setattr(auth, "_jwks_client", FakeJWKSClient())
+    monkeypatch.setattr(auth, "_issuer", ISSUER)
     config.settings.cache_clear()
     yield
     monkeypatch.setattr(auth, "_jwks_client", None)
+    monkeypatch.setattr(auth, "_issuer", "")
     config.settings.cache_clear()
 
 

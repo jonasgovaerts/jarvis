@@ -18,44 +18,48 @@ from gateway.config import settings
 log = logging.getLogger(__name__)
 
 _jwks_client: pyjwt.PyJWKClient | None = None
+_issuer: str = ""  # exact issuer per the discovery document (incl. trailing /)
 _jwks_lock = asyncio.Lock()
 
 
-async def _jwks() -> pyjwt.PyJWKClient:
-    """JWKS client from OIDC discovery, cached for the process lifetime."""
-    global _jwks_client
+async def _jwks() -> tuple[pyjwt.PyJWKClient, str]:
+    """JWKS client + exact issuer from OIDC discovery, cached per process."""
+    global _jwks_client, _issuer
     if _jwks_client is None:
         async with _jwks_lock:
             if _jwks_client is None:
-                issuer = settings().oidc_issuer.rstrip("/")
-                discovery = f"{issuer}/.well-known/openid-configuration"
+                base = settings().oidc_issuer.rstrip("/")
+                discovery = f"{base}/.well-known/openid-configuration"
 
-                def fetch() -> pyjwt.PyJWKClient:
+                def fetch() -> tuple[pyjwt.PyJWKClient, str]:
                     import json
                     import urllib.request
 
                     with urllib.request.urlopen(discovery, timeout=10) as response:  # noqa: S310
-                        jwks_uri = json.load(response)["jwks_uri"]
-                    return pyjwt.PyJWKClient(jwks_uri, cache_keys=True, lifespan=3600)
+                        doc = json.load(response)
+                    client = pyjwt.PyJWKClient(doc["jwks_uri"], cache_keys=True, lifespan=3600)
+                    # Tokens carry `iss` exactly as discovery declares it
+                    # (authentik includes a trailing slash) — never normalize.
+                    return client, doc["issuer"]
 
-                _jwks_client = await asyncio.to_thread(fetch)
-    return _jwks_client
+                _jwks_client, _issuer = await asyncio.to_thread(fetch)
+    return _jwks_client, _issuer
 
 
 async def _valid_oidc_jwt(token: str) -> bool:
     cfg = settings()
     try:
-        client = await _jwks()
+        client, issuer = await _jwks()
         key = await asyncio.to_thread(client.get_signing_key_from_jwt, token)
         pyjwt.decode(
             token,
             key.key,
             algorithms=["RS256", "ES256"],
             audience=cfg.oidc_client_id,
-            issuer=cfg.oidc_issuer.rstrip("/"),
+            issuer=issuer,
         )
     except pyjwt.PyJWTError as exc:
-        log.debug("JWT rejected: %s", exc)
+        log.warning("JWT rejected: %s", exc)
         return False
     except Exception:
         log.exception("JWKS lookup failed")
