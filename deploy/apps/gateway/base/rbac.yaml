@@ -1,0 +1,35 @@
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: gateway
+  namespace: jarvis-system
+---
+# The gateway watches WorkItems for the board, creates them from chat,
+# patches the requested-action annotation, and manages ManagedRepositories
+# from the settings page — all in the `jarvis` namespace.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: jarvis-gateway
+  namespace: jarvis
+rules:
+  - apiGroups: ["jarvis.dev"]
+    resources: ["workitems"]
+    verbs: ["get", "list", "watch", "create", "patch"]
+  - apiGroups: ["jarvis.dev"]
+    resources: ["managedrepositories"]
+    verbs: ["get", "list", "create", "delete"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: jarvis-gateway
+  namespace: jarvis
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: jarvis-gateway
+subjects:
+  - kind: ServiceAccount
+    name: gateway
+    namespace: jarvis-system

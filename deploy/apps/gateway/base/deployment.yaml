@@ -15,6 +15,7 @@ spec:
       labels:
         app.kubernetes.io/name: gateway
     spec:
+      serviceAccountName: gateway
       containers:
         - name: gateway
           image: ghcr.io/jonasgovaerts/jarvis/gateway:latest # pinned by deploy-bump in the overlay
