@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from fastapi import APIRouter, Depends, HTTPException
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
 from gateway.api.deps import require_token
 from gateway.config import settings
@@ -20,6 +20,16 @@ class RepoCreate(BaseModel):
     credentials_secret_name: str = Field(alias="credentialsSecretName")
 
     model_config = {"populate_by_name": True}
+
+    @model_validator(mode="after")
+    def normalize_repo_url(self) -> RepoCreate:
+        """Accept a pasted clone URL in the repo field: extract owner/name."""
+        candidate = self.repo.strip().removesuffix(".git")
+        if "github.com" in candidate or candidate.startswith(("http://", "https://", "git@")):
+            parts = candidate.replace(":", "/").rstrip("/").split("/")
+            if len(parts) >= 2:
+                self.owner, self.repo = parts[-2], parts[-1]
+        return self
 
 
 @router.get("")

@@ -73,3 +73,19 @@ def test_tasks_empty_and_drafts_empty():
     with client() as c:
         assert c.get("/api/tasks").json() == []
         assert c.get("/api/drafts").json() == []
+
+
+def test_repo_create_normalizes_pasted_urls():
+    from gateway.api.repos import RepoCreate
+
+    body = RepoCreate(
+        name="home-services",
+        owner="ignored",
+        repo="https://github.com/jonasgovaerts/home-services.git",
+        credentialsSecretName="repo-token-x",
+    )
+    assert body.owner == "jonasgovaerts"
+    assert body.repo == "home-services"
+
+    plain = RepoCreate(name="x", owner="acme", repo="api", credentialsSecretName="s")
+    assert (plain.owner, plain.repo) == ("acme", "api")
