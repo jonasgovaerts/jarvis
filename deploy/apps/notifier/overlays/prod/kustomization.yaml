@@ -5,4 +5,4 @@ resources:
 images:
 - name: ghcr.io/jonasgovaerts/jarvis/notifier
   newName: ghcr.io/jonasgovaerts/jarvis/notifier
-  newTag: sha-90ef8c8
+  newTag: sha-004ee31
