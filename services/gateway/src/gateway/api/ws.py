@@ -5,7 +5,7 @@ import contextlib
 
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 
-from gateway.config import settings
+from gateway.auth import credential_ok
 from gateway.state import state
 
 router = APIRouter()
@@ -15,12 +15,7 @@ PING_INTERVAL = 25
 
 @router.websocket("/ws")
 async def websocket_endpoint(ws: WebSocket, token: str = "") -> None:
-    cfg = settings()
-    if cfg.auth_mode == "forward-auth" and ws.headers.get("x-authentik-username"):
-        expected = ""  # identity asserted by the forwardAuth middleware
-    else:
-        expected = cfg.jarvis_token
-    if expected and token != expected:
+    if not await credential_ok(token):
         await ws.close(code=4401)
         return
 

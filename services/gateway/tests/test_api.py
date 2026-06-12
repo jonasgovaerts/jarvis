@@ -95,34 +95,31 @@ def test_features_reflect_mail_toggle(monkeypatch):
     from gateway import config
 
     with client() as c:
-        assert c.get("/api/features").json() == {"mail": True, "auth": "token"}
+        assert c.get("/api/features").json()["mail"] is True
 
     monkeypatch.setenv("MAIL_ENABLED", "false")
     config.settings.cache_clear()
     try:
         with client() as c:
-            assert c.get("/api/features").json() == {"mail": False, "auth": "token"}
+            assert c.get("/api/features").json()["mail"] is False
     finally:
         config.settings.cache_clear()
 
 
-def test_forward_auth_mode(monkeypatch):
+def test_features_expose_oidc_client_config(monkeypatch):
     from gateway import config
 
-    monkeypatch.setenv("AUTH_MODE", "forward-auth")
-    monkeypatch.setenv("JARVIS_TOKEN", "sekrit")
+    monkeypatch.setenv("AUTH_MODE", "oidc")
+    monkeypatch.setenv("OIDC_ISSUER", "https://authentik.jonasg.be/application/o/jarvis/")
     config.settings.cache_clear()
     try:
         with client() as c:
-            # Identity header from the authentik outpost is accepted.
-            ok = c.get("/api/workflows", headers={"X-authentik-username": "jonas"})
-            assert ok.status_code == 200
-            # The bearer token keeps working (port-forward access).
-            ok = c.get("/api/workflows", headers={"Authorization": "Bearer sekrit"})
-            assert ok.status_code == 200
-            # No credentials at all is rejected.
+            # Public: the SPA needs this before it has any credential.
+            body = c.get("/api/features").json()
+            assert body["auth"] == "oidc"
+            assert body["oidcIssuer"].startswith("https://authentik.jonasg.be/")
+            assert body["oidcClientId"] == "jarvis"
+            # Without a credential the API itself stays closed.
             assert c.get("/api/workflows").status_code == 401
-            # Features stays public so the SPA can discover the auth mode.
-            assert c.get("/api/features").json() == {"mail": True, "auth": "forward-auth"}
     finally:
         config.settings.cache_clear()

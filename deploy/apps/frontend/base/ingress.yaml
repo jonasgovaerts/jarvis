@@ -1,27 +1,5 @@
-# Authentik forward-auth at the edge (same pattern as personal-trainer):
-# traefik consults the ak-outpost before any request reaches the frontend,
-# which same-origin-proxies /api and /ws to the gateway.
-apiVersion: traefik.io/v1alpha1
-kind: Middleware
-metadata:
-  name: authentik-auth
-  namespace: jarvis-system
-spec:
-  forwardAuth:
-    address: http://ak-outpost-homelab.default.svc.cluster.local:9000/outpost.goauthentik.io/auth/traefik
-    trustForwardHeader: true
-    authResponseHeaders:
-      - X-authentik-username
-      - X-authentik-groups
-      - X-authentik-email
-      - X-authentik-name
-      - X-authentik-jwt
-      - X-authentik-meta-jwks
-      - X-authentik-meta-outpost
-      - X-authentik-meta-provider
-      - X-authentik-meta-app
-      - X-authentik-meta-connection
----
+# Auth happens in the app (OIDC against authentik), not at the edge: the SPA
+# runs authorization-code+PKCE and the gateway validates JWTs via JWKS.
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
@@ -31,7 +9,6 @@ metadata:
     cert-manager.io/cluster-issuer: letsencrypt-cloudflare
     external-dns.alpha.kubernetes.io/hostname: jarvis.homelab.jonasg.be
     traefik.ingress.kubernetes.io/router.entrypoints: websecure
-    traefik.ingress.kubernetes.io/router.middlewares: jarvis-system-authentik-auth@kubernetescrd
 spec:
   ingressClassName: traefik
   rules:

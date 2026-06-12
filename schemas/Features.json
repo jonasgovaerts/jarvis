@@ -10,6 +10,16 @@
       "default": "token",
       "title": "Auth",
       "type": "string"
+    },
+    "oidcIssuer": {
+      "default": "",
+      "title": "Oidcissuer",
+      "type": "string"
+    },
+    "oidcClientId": {
+      "default": "",
+      "title": "Oidcclientid",
+      "type": "string"
     }
   },
   "title": "Features",

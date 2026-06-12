@@ -13,4 +13,9 @@ router = APIRouter(prefix="/api/features")
 @router.get("")
 async def get_features() -> Features:
     cfg = settings()
-    return Features(mail=cfg.mail_enabled, auth=cfg.auth_mode)
+    return Features(
+        mail=cfg.mail_enabled,
+        auth=cfg.auth_mode,
+        oidc_issuer=cfg.oidc_issuer,
+        oidc_client_id=cfg.oidc_client_id if cfg.auth_mode == "oidc" else "",
+    )

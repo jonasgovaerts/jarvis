@@ -3,6 +3,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { KeyRound } from "lucide-react";
 import { setToken, useAuthState } from "../lib/token";
 import { useFeatures } from "../lib/queries";
+import { reauthenticate } from "../lib/oidc";
 
 /**
  * Full-screen prompt shown on first run (no token stored) or after a 401.
@@ -13,9 +14,12 @@ export function TokenGate() {
   const queryClient = useQueryClient();
   const { data: features } = useFeatures();
 
-  // Behind the authentik forwardAuth middleware the session cookie is the
-  // credential — a token prompt would be pure confusion.
-  if (features?.auth === "forward-auth" && !unauthorized) return null;
+  // OIDC mode: OidcBoot owns sign-in; a 401 means the session expired —
+  // restart the redirect flow rather than prompting for a token.
+  if (features?.auth === "oidc") {
+    if (unauthorized) reauthenticate();
+    return null;
+  }
   if (!needsToken) return null;
 
   const submit = (event: FormEvent) => {

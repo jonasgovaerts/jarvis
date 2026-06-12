@@ -6,10 +6,12 @@ from jarvis_core.settings import JarvisSettings
 class GatewaySettings(JarvisSettings):
     service_name: str = "gateway"
 
-    # "token": static bearer (single-user default). "forward-auth": trust the
-    # X-authentik-username header set by the traefik forwardAuth middleware
-    # (authentik outpost); the bearer token keeps working for port-forward use.
+    # "token": static bearer (single-user default). "oidc": the SPA runs the
+    # authorization-code+PKCE flow against OIDC_ISSUER and sends the resulting
+    # JWT; the static token keeps working for port-forward/API use.
     auth_mode: str = "token"
+    oidc_issuer: str = ""  # e.g. https://authentik.jonasg.be/application/o/jarvis/
+    oidc_client_id: str = "jarvis"
 
     # Static bearer token for the single-user dashboard; empty disables auth
     # (local dev only — in-cluster it always comes from a Secret).

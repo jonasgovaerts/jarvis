@@ -40,15 +40,6 @@ export function useSocketStatus(): SocketStatus {
   return useSyncExternalStore(subscribeSocketStatus, getSocketStatus);
 }
 
-let authMode = "token";
-
-/** Called by the app once /api/features resolves; reconnects if needed. */
-export function setAuthMode(mode: string): void {
-  if (mode === authMode) return;
-  authMode = mode;
-  if (started) reconnectNow();
-}
-
 /** Start the single module-level WebSocket connection (idempotent). */
 export function startSocket(queryClient: QueryClient): void {
   client = queryClient;
@@ -84,15 +75,13 @@ function connect(): void {
   if (typeof WebSocket === "undefined") return;
   const token = getToken();
   currentToken = token;
-  if (token === "" && authMode !== "forward-auth") {
+  if (token === "") {
     setStatus("offline");
     return;
   }
 
   const protocol = window.location.protocol === "https:" ? "wss" : "ws";
-  // forward-auth: the authentik session cookie authenticates the upgrade.
-  const query = token === "" ? "" : `?token=${encodeURIComponent(token)}`;
-  const url = `${protocol}://${window.location.host}/ws${query}`;
+  const url = `${protocol}://${window.location.host}/ws?token=${encodeURIComponent(token)}`;
   setStatus("connecting");
 
   const ws = new WebSocket(url);

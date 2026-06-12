@@ -31,10 +31,14 @@ spec:
             # Mirrors workspace's MAIL_ENABLED — keep in sync; hides mail UI.
             - name: MAIL_ENABLED
               value: "false"
-            # Identity comes from the authentik forwardAuth middleware at the
-            # ingress; the bearer token still works for port-forward access.
+            # SPA does OIDC (code+PKCE) against authentik; gateway validates
+            # the JWTs. The bearer token still works for port-forward access.
             - name: AUTH_MODE
-              value: forward-auth
+              value: oidc
+            - name: OIDC_ISSUER
+              value: https://authentik.jonasg.be/application/o/jarvis/
+            - name: OIDC_CLIENT_ID
+              value: jarvis
             - name: LLM_API_KEY
               valueFrom:
                 secretKeyRef:

@@ -77,7 +77,9 @@ class Features(_EventModel):
     """Feature toggles the UI adapts to (hide disabled surfaces)."""
 
     mail: bool = True
-    auth: str = "token"  # token | forward-auth
+    auth: str = "token"  # token | oidc
+    oidc_issuer: str = ""  # SPA authority when auth == oidc
+    oidc_client_id: str = ""
 
 
 class RepositoryInfo(_EventModel):
