@@ -6,6 +6,6 @@ metadata:
   name: jarvis-defaults
   namespace: jarvis-operator-system
 data:
-  agentImage: ghcr.io/jonasgovaerts/jarvis/agents:development
+  agentImage: ghcr.io/jonasgovaerts/jarvis/agents:sha-492a3b4
   defaultModel: claude-sonnet
   llmBaseUrl: http://litellm.jarvis-platform.svc:4000
