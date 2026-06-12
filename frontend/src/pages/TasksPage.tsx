@@ -3,6 +3,7 @@ import { Check, Inbox, Mail, RotateCcw, Trash2 } from "lucide-react";
 import {
   useDraftAction,
   useDrafts,
+  useFeatures,
   useTaskUpdate,
   useTasks,
   type TaskStatusFilter,
@@ -158,6 +159,18 @@ function DraftsTab() {
 
 export function TasksPage() {
   const [tab, setTab] = useState<Tab>("tasks");
+  const { data: features } = useFeatures();
+
+  if (features && !features.mail) {
+    return (
+      <div className="mx-auto max-w-4xl p-6">
+        <EmptyState
+          title="Mail integration is disabled"
+          hint="Set MAIL_ENABLED=true on the workspace and gateway deployments to activate inbox automation."
+        />
+      </div>
+    );
+  }
 
   return (
     <div className="mx-auto max-w-4xl p-6">

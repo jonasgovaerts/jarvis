@@ -1,0 +1,13 @@
+{
+  "description": "Feature toggles the UI adapts to (hide disabled surfaces).",
+  "properties": {
+    "mail": {
+      "default": true,
+      "title": "Mail",
+      "type": "boolean"
+    }
+  },
+  "title": "Features",
+  "type": "object",
+  "$schema": "https://json-schema.org/draft/2020-12/schema"
+}

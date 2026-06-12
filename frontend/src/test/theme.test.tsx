@@ -1,17 +1,27 @@
 import { describe, expect, it } from "vitest";
 import { render, screen } from "@testing-library/react";
 import { MemoryRouter } from "react-router";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { AppShell } from "../components/AppShell";
 
-describe("AppShell theme smoke test", () => {
-  it("renders the JARVIS sidebar with nav, mono logo and connection orb", () => {
-    render(
+function renderShell() {
+  const client = new QueryClient({
+    defaultOptions: { queries: { retry: false, enabled: false } },
+  });
+  render(
+    <QueryClientProvider client={client}>
       <MemoryRouter>
         <AppShell>
           <p>main content</p>
         </AppShell>
-      </MemoryRouter>,
-    );
+      </MemoryRouter>
+    </QueryClientProvider>,
+  );
+}
+
+describe("AppShell theme smoke test", () => {
+  it("renders the JARVIS sidebar with nav, mono logo and connection orb", () => {
+    renderShell();
 
     const logo = screen.getByText("Jarvis");
     expect(logo).toBeTruthy();

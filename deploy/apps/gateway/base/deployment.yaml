@@ -28,6 +28,9 @@ spec:
               value: http://litellm.jarvis-platform.svc:4000
             - name: CHAT_MODEL
               value: gemini
+            # Mirrors workspace's MAIL_ENABLED — keep in sync; hides mail UI.
+            - name: MAIL_ENABLED
+              value: "false"
             - name: LLM_API_KEY
               valueFrom:
                 secretKeyRef:

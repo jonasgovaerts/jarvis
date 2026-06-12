@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   BoardItemSchema,
+  FeaturesSchema,
   ChatMessageSchema,
   ChatSessionSchema,
   DraftEmailSchema,
@@ -34,6 +35,17 @@ function parseWorkflowDetail(raw: unknown): WorkflowDetail {
     status: record.status,
     history: WorkflowEventSchema.array().parse(record.history ?? []),
   };
+}
+
+// ---------------------------------------------------------------------------
+// Features
+
+export function useFeatures() {
+  return useQuery({
+    queryKey: ["features"],
+    queryFn: async () => FeaturesSchema.parse(await api("/api/features")),
+    staleTime: Infinity, // changes only with a redeploy
+  });
 }
 
 // ---------------------------------------------------------------------------

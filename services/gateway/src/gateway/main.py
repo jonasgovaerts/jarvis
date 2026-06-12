@@ -7,7 +7,7 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 
-from gateway.api import chat, drafts, repos, tasks, workflows, ws
+from gateway.api import chat, drafts, features, repos, tasks, workflows, ws
 from gateway.config import settings
 from gateway.events.fanout import run_history_consumer, run_ws_fanout
 from gateway.k8s.watcher import run_watcher, seed_fixtures
@@ -67,6 +67,7 @@ def create_app() -> FastAPI:
     app.include_router(drafts.router)
     app.include_router(repos.router)
     app.include_router(chat.router)
+    app.include_router(features.router)
     app.include_router(ws.router)
 
     @app.get("/api/healthz")

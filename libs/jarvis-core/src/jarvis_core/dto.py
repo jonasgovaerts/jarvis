@@ -73,6 +73,12 @@ class ChatSession(_EventModel):
     created_at: datetime
 
 
+class Features(_EventModel):
+    """Feature toggles the UI adapts to (hide disabled surfaces)."""
+
+    mail: bool = True
+
+
 class RepositoryInfo(_EventModel):
     """A ManagedRepository CR projected for the settings page."""
 
@@ -87,6 +93,7 @@ class RepositoryInfo(_EventModel):
 
 
 DTOS: list[type[_EventModel]] = [
+    Features,
     BoardItem,
     WorkflowEvent,
     UserTask,

@@ -20,6 +20,10 @@ class GatewaySettings(JarvisSettings):
     # Chat model (LiteLLM logical name); base URL comes from JarvisSettings.
     chat_model: str = "claude-sonnet"
 
+    # Mirrors the workspace deployment's MAIL_ENABLED — keep the two env
+    # values in sync in deploy/. The UI hides mail surfaces when off.
+    mail_enabled: bool = True
+
 
 @lru_cache
 def settings() -> GatewaySettings:

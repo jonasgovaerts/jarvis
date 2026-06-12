@@ -9,6 +9,7 @@ export { EmailDraftApprovedSchema, type EmailDraftApproved } from "./EmailDraftA
 export { EmailDraftReadySchema, type EmailDraftReady } from "./EmailDraftReady.js";
 export { EmailTaskCreatedSchema, type EmailTaskCreated } from "./EmailTaskCreated.js";
 export { EventEnvelopeSchema, type EventEnvelope } from "./EventEnvelope.js";
+export { FeaturesSchema, type Features } from "./Features.js";
 export { RepositoryInfoSchema, type RepositoryInfo } from "./RepositoryInfo.js";
 export { TaskCompletedSchema, type TaskCompleted } from "./TaskCompleted.js";
 export { UserTaskSchema, type UserTask } from "./UserTask.js";
@@ -30,6 +31,7 @@ import { EmailDraftApprovedSchema as _EmailDraftApproved } from "./EmailDraftApp
 import { EmailDraftReadySchema as _EmailDraftReady } from "./EmailDraftReady.js";
 import { EmailTaskCreatedSchema as _EmailTaskCreated } from "./EmailTaskCreated.js";
 import { EventEnvelopeSchema as _EventEnvelope } from "./EventEnvelope.js";
+import { FeaturesSchema as _Features } from "./Features.js";
 import { RepositoryInfoSchema as _RepositoryInfo } from "./RepositoryInfo.js";
 import { TaskCompletedSchema as _TaskCompleted } from "./TaskCompleted.js";
 import { UserTaskSchema as _UserTask } from "./UserTask.js";

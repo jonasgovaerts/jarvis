@@ -3,15 +3,20 @@ import { NavLink } from "react-router";
 import { LayoutDashboard, ListChecks, MessageSquare, Settings } from "lucide-react";
 import { Clock } from "./Clock";
 import { ConnectionOrb } from "./ConnectionOrb";
+import { useFeatures } from "../lib/queries";
 
 const NAV_ITEMS = [
   { to: "/", label: "Board", icon: LayoutDashboard, end: true },
-  { to: "/tasks", label: "Tasks", icon: ListChecks, end: false },
+  { to: "/tasks", label: "Tasks", icon: ListChecks, end: false, feature: "mail" },
   { to: "/chat", label: "Chat", icon: MessageSquare, end: false },
   { to: "/settings", label: "Settings", icon: Settings, end: false },
 ] as const;
 
 export function AppShell({ children }: { children: ReactNode }) {
+  const { data: features } = useFeatures();
+  const navItems = NAV_ITEMS.filter(
+    (item) => !("feature" in item) || features?.[item.feature] !== false,
+  );
   return (
     <div className="flex h-full overflow-hidden">
       <aside className="flex w-52 shrink-0 flex-col border-r border-cyan-500/15 bg-panel/70">
@@ -24,7 +29,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           </p>
         </div>
         <nav className="flex-1 space-y-1 px-3">
-          {NAV_ITEMS.map(({ to, label, icon: Icon, end }) => (
+          {navItems.map(({ to, label, icon: Icon, end }) => (
             <NavLink
               key={to}
               to={to}

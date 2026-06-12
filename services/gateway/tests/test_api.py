@@ -89,3 +89,18 @@ def test_repo_create_normalizes_pasted_urls():
 
     plain = RepoCreate(name="x", owner="acme", repo="api", credentialsSecretName="s")
     assert (plain.owner, plain.repo) == ("acme", "api")
+
+
+def test_features_reflect_mail_toggle(monkeypatch):
+    from gateway import config
+
+    with client() as c:
+        assert c.get("/api/features").json() == {"mail": True}
+
+    monkeypatch.setenv("MAIL_ENABLED", "false")
+    config.settings.cache_clear()
+    try:
+        with client() as c:
+            assert c.get("/api/features").json() == {"mail": False}
+    finally:
+        config.settings.cache_clear()
