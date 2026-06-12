@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { Link } from "react-router";
-import { MessageSquarePlus, Radar, Send } from "lucide-react";
+import { Menu, MessageSquarePlus, Radar, Send, X } from "lucide-react";
 import type { ChatMessage, ChatSession } from "@jarvis/events";
 import { useChatMessages, useChatSessions, useCreateSession, useSendMessage, useUpdateSessionTitle } from "../lib/queries";
 import { EmptyState } from "../components/EmptyState";
@@ -115,6 +115,7 @@ function SessionItem({
 export function ChatPage() {
   const { data: sessions, isLoading: sessionsLoading } = useChatSessions();
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const activeId = selectedId ?? sessions?.[0]?.id ?? null;
 
   const { data: messages } = useChatMessages(activeId);
@@ -129,8 +130,16 @@ export function ChatPage() {
 
   const newSession = () => {
     createSession.mutate(undefined, {
-      onSuccess: (session) => setSelectedId(session.id),
+      onSuccess: (session) => {
+        setSelectedId(session.id);
+        setIsSidebarOpen(false);
+      },
     });
+  };
+
+  const handleSessionClick = (sessionId: string) => {
+    setSelectedId(sessionId);
+    setIsSidebarOpen(false);
   };
 
   const submit = (event: FormEvent) => {
@@ -142,21 +151,40 @@ export function ChatPage() {
   };
 
   return (
-    <div className="flex h-full">
-      <aside className="flex w-64 shrink-0 flex-col border-r border-cyan-500/15 bg-panel/40">
+    <div className="relative flex h-full">
+      {isSidebarOpen && (
+        <div
+          className="fixed inset-0 z-10 bg-black/60 md:hidden"
+          onClick={() => setIsSidebarOpen(false)}
+        />
+      )}
+      <aside
+        className={`${
+          isSidebarOpen ? "flex" : "hidden"
+        } absolute z-20 h-full w-full flex-col border-r border-cyan-500/15 bg-panel md:relative md:z-auto md:w-64 md:shrink-0 md:flex`}
+      >
         <div className="flex items-center justify-between border-b border-cyan-500/15 px-4 py-3">
           <h2 className="font-mono text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-400">
             Sessions
           </h2>
-          <button
-            type="button"
-            onClick={newSession}
-            disabled={createSession.isPending}
-            title="New session"
-            className="rounded p-1 text-accent transition hover:bg-cyan-500/10 disabled:opacity-50"
-          >
-            <MessageSquarePlus className="h-4 w-4" />
-          </button>
+          <div className="flex items-center">
+            <button
+              type="button"
+              onClick={newSession}
+              disabled={createSession.isPending}
+              title="New session"
+              className="rounded p-1 text-accent transition hover:bg-cyan-500/10 disabled:opacity-50"
+            >
+              <MessageSquarePlus className="h-4 w-4" />
+            </button>
+            <button
+              type="button"
+              onClick={() => setIsSidebarOpen(false)}
+              className="ml-2 rounded p-1 text-accent transition hover:bg-cyan-500/10 md:hidden"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          </div>
         </div>
         <div className="flex-1 space-y-1 overflow-y-auto p-2">
           {sessionsLoading ? (
@@ -171,7 +199,7 @@ export function ChatPage() {
                 key={session.id}
                 session={session}
                 isActive={session.id === activeId}
-                onClick={() => setSelectedId(session.id)}
+                onClick={() => handleSessionClick(session.id)}
               />
             ))
           )}
@@ -179,7 +207,20 @@ export function ChatPage() {
       </aside>
 
       <section className="flex min-w-0 flex-1 flex-col">
-        <div className="flex-1 space-y-3 overflow-y-auto p-6">
+        <div className="flex items-center gap-2 border-b border-cyan-500/15 p-2 md:hidden">
+          <button
+            type="button"
+            onClick={() => setIsSidebarOpen(true)}
+            className="rounded p-1 text-accent transition hover:bg-cyan-500/10"
+          >
+            <Menu className="h-5 w-5" />
+          </button>
+          <h1 className="truncate text-sm font-semibold text-slate-300">
+            {sessions?.find((s) => s.id === activeId)?.title ?? "Chat"}
+          </h1>
+        </div>
+
+        <div className="flex-1 space-y-3 overflow-y-auto p-3 md:p-6">
           {activeId === null ? (
             <EmptyState
               title="No transmission channel"

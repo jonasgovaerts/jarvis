@@ -56,7 +56,7 @@ function TasksTab() {
           {(tasks ?? []).map((task) => (
             <li
               key={task.id}
-              className="flex items-start justify-between gap-4 rounded-lg border border-cyan-500/15 bg-panel p-4"
+              className="flex flex-col gap-4 rounded-lg border border-cyan-500/15 bg-panel p-4 sm:flex-row sm:items-start sm:justify-between"
             >
               <div className="min-w-0">
                 <div className="flex flex-wrap items-center gap-2">
@@ -82,7 +82,7 @@ function TasksTab() {
                 onClick={() =>
                   update.mutate({ id: task.id, status: filter === "open" ? "done" : "open" })
                 }
-                className="inline-flex shrink-0 items-center gap-1.5 rounded-md border border-cyan-500/30 px-3 py-1.5 text-xs font-semibold text-slate-200 transition hover:border-accent/60 hover:text-accent disabled:opacity-50"
+                className="inline-flex w-full shrink-0 items-center justify-center gap-1.5 rounded-md border border-cyan-500/30 px-3 py-1.5 text-xs font-semibold text-slate-200 transition hover:border-accent/60 hover:text-accent disabled:opacity-50 sm:w-auto"
               >
                 {filter === "open" ? (
                   <>
@@ -117,7 +117,7 @@ function DraftsTab() {
           {(drafts ?? []).map((draft) => (
             <li
               key={draft.taskId}
-              className="flex items-start justify-between gap-4 rounded-lg border border-cyan-500/15 bg-panel p-4"
+              className="flex flex-col gap-4 rounded-lg border border-cyan-500/15 bg-panel p-4 sm:flex-row sm:items-start sm:justify-between"
             >
               <div className="min-w-0">
                 <div className="flex flex-wrap items-center gap-2">
@@ -131,12 +131,12 @@ function DraftsTab() {
                   {formatAge(draft.createdAt)} ago
                 </p>
               </div>
-              <div className="flex shrink-0 gap-2">
+              <div className="flex w-full shrink-0 gap-2 sm:w-auto">
                 <button
                   type="button"
                   disabled={action.isPending}
                   onClick={() => action.mutate({ taskId: draft.taskId, action: "approve" })}
-                  className="inline-flex items-center gap-1.5 rounded-md bg-accent px-3 py-1.5 text-xs font-semibold text-base shadow-glow transition hover:bg-cyan-300 disabled:opacity-50"
+                  className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-md bg-accent px-3 py-1.5 text-xs font-semibold text-base shadow-glow transition hover:bg-cyan-300 disabled:opacity-50"
                 >
                   <Check className="h-3.5 w-3.5" /> Approve
                 </button>
@@ -144,7 +144,7 @@ function DraftsTab() {
                   type="button"
                   disabled={action.isPending}
                   onClick={() => action.mutate({ taskId: draft.taskId, action: "discard" })}
-                  className="inline-flex items-center gap-1.5 rounded-md border border-danger/40 px-3 py-1.5 text-xs font-semibold text-danger transition hover:bg-danger/10 disabled:opacity-50"
+                  className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-md border border-danger/40 px-3 py-1.5 text-xs font-semibold text-danger transition hover:bg-danger/10 disabled:opacity-50"
                 >
                   <Trash2 className="h-3.5 w-3.5" /> Discard
                 </button>
@@ -163,7 +163,7 @@ export function TasksPage() {
 
   if (features && !features.mail) {
     return (
-      <div className="mx-auto max-w-4xl p-6">
+      <div className="mx-auto max-w-4xl p-3 md:p-6">
         <EmptyState
           title="Mail integration is disabled"
           hint="Set MAIL_ENABLED=true on the workspace and gateway deployments to activate inbox automation."
@@ -173,7 +173,7 @@ export function TasksPage() {
   }
 
   return (
-    <div className="mx-auto max-w-4xl p-6">
+    <div className="mx-auto max-w-4xl p-3 md:p-6">
       <h1 className="font-mono text-sm font-semibold uppercase tracking-[0.3em] text-slate-200">
         Inbox operations
       </h1>
