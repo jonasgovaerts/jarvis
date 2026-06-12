@@ -24,3 +24,5 @@ spec:
                 configMapKeyRef:
                   name: jarvis-defaults
                   key: llmBaseUrl
+            - name: JARVIS_NATS_URL
+              value: nats://nats.jarvis-platform.svc:4222

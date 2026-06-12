@@ -5,6 +5,7 @@ description = "Jarvis agent runtime: analyzer | developer | devops | sre"
 requires-python = ">=3.13"
 dependencies = [
     "jarvis-core[llm]",
+    "pyyaml>=6.0",
 ]
 
 [project.scripts]

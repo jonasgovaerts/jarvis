@@ -35,6 +35,8 @@ import (
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 
 	jarvisv1alpha1 "github.com/jonasgovaerts/jarvis/operator/api/v1alpha1"
+	jarvisevents "github.com/jonasgovaerts/jarvis/operator/internal/events"
+	"github.com/jonasgovaerts/jarvis/operator/internal/forge"
 	"github.com/jonasgovaerts/jarvis/operator/internal/jobs"
 )
 
@@ -69,6 +71,8 @@ type WorkItemReconciler struct {
 	client.Client
 	Scheme   *runtime.Scheme
 	Recorder events.EventRecorder
+	// Events publishes to NATS JetStream; nil disables publishing (envtest).
+	Events jarvisevents.Publisher
 }
 
 // +kubebuilder:rbac:groups=jarvis.dev,resources=workitems,verbs=get;list;watch;create;update;patch;delete
@@ -77,6 +81,7 @@ type WorkItemReconciler struct {
 // +kubebuilder:rbac:groups=jarvis.dev,resources=managedrepositories,verbs=get;list;watch
 // +kubebuilder:rbac:groups=batch,resources=jobs,verbs=get;list;watch;create;delete
 // +kubebuilder:rbac:groups="",resources=pods,verbs=get;list;watch
+// +kubebuilder:rbac:groups="",resources=secrets,verbs=get
 // +kubebuilder:rbac:groups="",resources=events,verbs=create;patch
 
 func (r *WorkItemReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
@@ -157,7 +162,7 @@ func (r *WorkItemReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 		return r.reconcileStage(ctx, orig, wi, repo, jarvisv1alpha1.StageDevOps, suspended, r.onCIChecked)
 
 	case jarvisv1alpha1.PhaseAwaitingMerge:
-		return r.reconcileAwaitingMerge(ctx, orig, wi)
+		return r.reconcileAwaitingMerge(ctx, orig, wi, repo)
 
 	case jarvisv1alpha1.PhaseRolloutCheck:
 		if repo.Spec.GitOps == nil {
@@ -178,6 +183,13 @@ func (r *WorkItemReconciler) initialize(ctx context.Context, orig, wi *jarvisv1a
 		return ctrl.Result{}, err
 	}
 	r.Recorder.Eventf(wi, nil, corev1.EventTypeNormal, "Created", "Reconcile", "WorkItem accepted into the pipeline")
+	r.publish(ctx, wi, jarvisevents.SubjectCreated, string(wi.UID)+":created", jarvisevents.WorkflowCreated{
+		Name:       wi.Name,
+		Namespace:  wi.Namespace,
+		Repository: repoLabel(wi),
+		SourceType: string(wi.Spec.Source.Type),
+		Title:      wi.Spec.Source.TitleText(),
+	})
 	return ctrl.Result{Requeue: true}, nil
 }
 
@@ -418,15 +430,42 @@ func (r *WorkItemReconciler) onRolloutDecided(wi *jarvisv1alpha1.WorkItem, env *
 
 // --- non-stage phases ----------------------------------------------------------
 
-// reconcileAwaitingMerge waits for the PR to merge. The devops agent reports
-// merged=true under autoMerge; external merges are detected by the forge poll
-// (step 7) — until then this requeues.
-func (r *WorkItemReconciler) reconcileAwaitingMerge(ctx context.Context, orig, wi *jarvisv1alpha1.WorkItem) (ctrl.Result, error) {
+// reconcileAwaitingMerge waits for the PR to merge: either the devops agent
+// already merged it (autoMerge) or a human merges and the forge poll sees it.
+func (r *WorkItemReconciler) reconcileAwaitingMerge(ctx context.Context, orig, wi *jarvisv1alpha1.WorkItem, repo *jarvisv1alpha1.ManagedRepository) (ctrl.Result, error) {
 	if wi.Status.CI != nil && wi.Status.CI.Merged {
 		setCond(wi, jarvisv1alpha1.CondMerged, metav1.ConditionTrue, "Merged", wi.Status.CI.MergeSHA)
 		return r.transition(ctx, orig, wi, jarvisv1alpha1.PhaseRolloutCheck, "PR merged, checking rollout")
 	}
+
+	if wi.Status.Development != nil && repo.Spec.Provider == "github" {
+		merged, mergeSHA, err := r.pollMergeState(ctx, wi, repo)
+		if err != nil {
+			logf.FromContext(ctx).Error(err, "merge-state poll failed")
+			return ctrl.Result{RequeueAfter: awaitingMergeRequeue}, nil
+		}
+		if merged {
+			if wi.Status.CI == nil {
+				wi.Status.CI = &jarvisv1alpha1.CIResult{Status: "Passed"}
+			}
+			wi.Status.CI.Merged = true
+			wi.Status.CI.MergeSHA = mergeSHA
+			setCond(wi, jarvisv1alpha1.CondMerged, metav1.ConditionTrue, "Merged", mergeSHA)
+			return r.transition(ctx, orig, wi, jarvisv1alpha1.PhaseRolloutCheck, "PR merged, checking rollout")
+		}
+	}
 	return ctrl.Result{RequeueAfter: awaitingMergeRequeue}, nil
+}
+
+// pollMergeState asks the forge whether the PR merged, using the repository token.
+func (r *WorkItemReconciler) pollMergeState(ctx context.Context, wi *jarvisv1alpha1.WorkItem, repo *jarvisv1alpha1.ManagedRepository) (bool, string, error) {
+	secret := &corev1.Secret{}
+	key := client.ObjectKey{Namespace: repo.Namespace, Name: repo.Spec.CredentialsSecretRef.Name}
+	if err := r.Get(ctx, key, secret); err != nil {
+		return false, "", err
+	}
+	token := string(secret.Data["token"])
+	return forge.PRMergeState(ctx, token, repo.Spec.Owner, repo.Spec.Name, wi.Status.Development.PRNumber)
 }
 
 // completeWithoutRollout finishes items whose repository has no GitOps mapping.
@@ -469,7 +508,56 @@ func (r *WorkItemReconciler) transition(ctx context.Context, orig, wi *jarvisv1a
 		return ctrl.Result{}, err
 	}
 	r.Recorder.Eventf(wi, nil, corev1.EventTypeNormal, "PhaseChanged", "Reconcile", "%s → %s: %s", from, next, note)
+	r.publishTransitionEvents(ctx, wi, from, next, note)
 	return ctrl.Result{Requeue: !next.IsTerminal()}, nil
+}
+
+// publishTransitionEvents emits the phase change plus any milestone event the
+// new status carries (analysis verdict, PR opened/ready, rollout decision).
+func (r *WorkItemReconciler) publishTransitionEvents(ctx context.Context, wi *jarvisv1alpha1.WorkItem, from, next jarvisv1alpha1.WorkItemPhase, note string) {
+	repo := repoLabel(wi)
+	uid := string(wi.UID)
+	r.publish(ctx, wi, jarvisevents.SubjectPhaseChanged,
+		fmt.Sprintf("%s:phase:%s>%s", uid, from, next),
+		jarvisevents.WorkflowPhaseChanged{
+			Name: wi.Name, Repository: repo,
+			FromPhase: string(from), ToPhase: string(next), Message: note,
+		})
+
+	if from == jarvisv1alpha1.PhaseAnalyzing && wi.Status.Analysis != nil {
+		a := wi.Status.Analysis
+		r.publish(ctx, wi, jarvisevents.SubjectAnalysisCompleted, uid+":analysis",
+			jarvisevents.WorkflowAnalysisCompleted{
+				Name: wi.Name, Repository: repo,
+				Verdict: a.Verdict, Summary: a.Summary, Confidence: a.Confidence,
+			})
+	}
+	if from == jarvisv1alpha1.PhaseDeveloping && next == jarvisv1alpha1.PhaseAwaitingCI && wi.Status.Development != nil {
+		d := wi.Status.Development
+		r.publish(ctx, wi, jarvisevents.SubjectPROpened,
+			fmt.Sprintf("%s:propened:%d:%s", uid, d.PRNumber, d.HeadSHA),
+			jarvisevents.WorkflowPROpened{
+				Name: wi.Name, Repository: repo,
+				PRURL: d.PRURL, PRNumber: d.PRNumber, Branch: d.Branch,
+			})
+	}
+	if next == jarvisv1alpha1.PhaseAwaitingMerge && wi.Status.Development != nil {
+		d := wi.Status.Development
+		r.publish(ctx, wi, jarvisevents.SubjectPRReady,
+			fmt.Sprintf("%s:prready:%d", uid, d.PRNumber),
+			jarvisevents.WorkflowPRReady{
+				Name: wi.Name, Repository: repo, PRURL: d.PRURL, PRNumber: d.PRNumber,
+			})
+	}
+	if next == jarvisv1alpha1.PhaseSucceeded && wi.Status.Rollout != nil {
+		ro := wi.Status.Rollout
+		r.publish(ctx, wi, jarvisevents.SubjectRolloutCompleted, uid+":rollout",
+			jarvisevents.WorkflowRolloutCompleted{
+				Name: wi.Name, Repository: repo,
+				Decision: ro.Decision, GitOpsCommitSHA: ro.GitOpsCommitSHA,
+				GitOpsPRURL: ro.GitOpsPRURL, ArgoCDApp: ro.ArgoCDApp,
+			})
+	}
 }
 
 // fail moves the WorkItem to Failed.
@@ -482,6 +570,11 @@ func (r *WorkItemReconciler) fail(ctx context.Context, orig, wi *jarvisv1alpha1.
 		return ctrl.Result{}, err
 	}
 	r.Recorder.Eventf(wi, nil, corev1.EventTypeWarning, "Failed", "Reconcile", "%s: %s", reason, message)
+	r.publish(ctx, wi, jarvisevents.SubjectFailed, string(wi.UID)+":failed",
+		jarvisevents.WorkflowFailed{
+			Name: wi.Name, Repository: repoLabel(wi),
+			Phase: string(orig.Status.Phase), Reason: wi.Status.FailureReason,
+		})
 	return ctrl.Result{}, nil
 }
 
@@ -549,6 +642,25 @@ func nonEmptyReason(reason string) string {
 }
 
 func ptrTime(t metav1.Time) *metav1.Time { return &t }
+
+// publish sends a workflow event to NATS; failures are surfaced as K8s
+// events but never block the pipeline (JetStream dedupe makes replays safe).
+func (r *WorkItemReconciler) publish(ctx context.Context, wi *jarvisv1alpha1.WorkItem, subject, msgID string, data any) {
+	if r.Events == nil {
+		return
+	}
+	if err := r.Events.Publish(ctx, subject, msgID, data); err != nil {
+		logf.FromContext(ctx).Error(err, "event publish failed", "subject", subject)
+		r.Recorder.Eventf(wi, nil, corev1.EventTypeWarning, "EventPublishFailed", "Reconcile", "%s: %v", subject, err)
+	}
+}
+
+func repoLabel(wi *jarvisv1alpha1.WorkItem) string {
+	if name := wi.Labels[jarvisv1alpha1.LabelRepository]; name != "" {
+		return name
+	}
+	return wi.Spec.RepositoryRef.Name
+}
 
 // SetupWithManager sets up the controller with the Manager.
 func (r *WorkItemReconciler) SetupWithManager(mgr ctrl.Manager) error {

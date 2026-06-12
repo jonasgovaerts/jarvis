@@ -495,10 +495,14 @@ version = "0.1.0"
 source = { editable = "agents" }
 dependencies = [
     { name = "jarvis-core", extra = ["llm"] },
+    { name = "pyyaml" },
 ]
 
 [package.metadata]
-requires-dist = [{ name = "jarvis-core", extras = ["llm"], editable = "libs/jarvis-core" }]
+requires-dist = [
+    { name = "jarvis-core", extras = ["llm"], editable = "libs/jarvis-core" },
+    { name = "pyyaml", specifier = ">=6.0" },
+]
 
 [[package]]
 name = "jarvis-core"

@@ -17,6 +17,7 @@ limitations under the License.
 package main
 
 import (
+	"context"
 	"crypto/tls"
 	"flag"
 	"os"
@@ -37,6 +38,7 @@ import (
 
 	jarvisv1alpha1 "github.com/jonasgovaerts/jarvis/operator/api/v1alpha1"
 	"github.com/jonasgovaerts/jarvis/operator/internal/controller"
+	jarvisevents "github.com/jonasgovaerts/jarvis/operator/internal/events"
 	// +kubebuilder:scaffold:imports
 )
 
@@ -178,10 +180,22 @@ func main() {
 		os.Exit(1)
 	}
 
+	var publisher jarvisevents.Publisher
+	if natsURL := os.Getenv("JARVIS_NATS_URL"); natsURL != "" {
+		p, err := jarvisevents.NewNATSPublisher(context.Background(), natsURL)
+		if err != nil {
+			setupLog.Error(err, "Failed to connect NATS; events disabled", "url", natsURL)
+		} else {
+			publisher = p
+			setupLog.Info("NATS event publishing enabled", "url", natsURL)
+		}
+	}
+
 	if err := (&controller.WorkItemReconciler{
 		Client:   mgr.GetClient(),
 		Scheme:   mgr.GetScheme(),
 		Recorder: mgr.GetEventRecorder("jarvis-operator"),
+		Events:   publisher,
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "Failed to create controller", "controller", "workitem")
 		os.Exit(1)
