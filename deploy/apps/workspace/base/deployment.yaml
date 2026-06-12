@@ -31,9 +31,9 @@ spec:
                 secretKeyRef:
                   name: jarvis-db
                   key: workspaceUrl
-            # Flip to "false" after watching DRY_RUN decisions in the logs.
+            # Dry-run was reviewed against the live inbox on 2026-06-12.
             - name: DRY_RUN
-              value: "true"
+              value: "false"
             # One-time inbox catch-up (idempotent; safe to leave on).
             - name: BACKFILL_ON_START
               value: "true"
