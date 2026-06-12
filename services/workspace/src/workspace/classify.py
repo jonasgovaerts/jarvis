@@ -33,6 +33,10 @@ class Classification(BaseModel):
     task: ExtractedTask | None = Field(
         default=None, description="Present only when category is task"
     )
+    needs_reply: bool = Field(
+        default=False,
+        description="True ONLY when the sender expects a written email reply from me",
+    )
     reasoning: str = ""
 
 
@@ -42,12 +46,21 @@ You triage a personal inbox. Classify each email:
 - task: the sender expects ME to do something (reply with an answer, review,
   schedule, decide, pay, send something). Extract the task.
 - informational: FYI content addressed to me, receipts, confirmations,
-  notifications. No action expected.
+  notifications. No action expected. Social/platform notifications (LinkedIn
+  invitations, TrainingPeaks or similar app updates) belong here.
 - newsletter: bulk mailings, digests, marketing, product updates.
 - spam_ish: unsolicited junk that somehow passed the spam filter.
 
+For tasks, set needs_reply=true ONLY when a human wrote to me and awaits a
+written answer (a question, a request for information, a decision they need
+from me). needs_reply=false when the action happens elsewhere: paying an
+invoice, signing a document, clicking a platform link, accepting a connection
+request, reviewing something in a portal. Automated senders (no-reply
+addresses, billing systems, notification bots) never need a reply.
+
 When unsure between task and anything else, prefer task — a false task costs
-seconds, a missed one costs trust.
+seconds, a missed one costs trust. When unsure about needs_reply, prefer
+false — an unwanted draft is noise.
 """
 
 

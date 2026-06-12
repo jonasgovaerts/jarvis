@@ -122,6 +122,7 @@ class Pipeline:
                         description=extracted.description,
                         priority=extracted.priority,
                         gmail_message_id=message_id,
+                        needs_reply=classification.needs_reply,
                     )
                     session.add(task)
                     await session.flush()
@@ -160,6 +161,13 @@ class Pipeline:
             if task is None:
                 return
             if task.gmail_draft_id:  # crash-replay guard: draft already exists
+                return
+            if not task.needs_reply:
+                # Action happens elsewhere (pay, sign, click) — a draft is noise.
+                email_row = await session.get(Email, email_pk)
+                email_row.status = "done"
+                email_row.processed_at = datetime.now(UTC)
+                await session.commit()
                 return
             extracted = clf.ExtractedTask(
                 title=task.title, description=task.description, priority=task.priority

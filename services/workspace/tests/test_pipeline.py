@@ -80,6 +80,7 @@ async def test_task_email_full_flow_and_replay_safety(session_factory, live_mode
         return Classification(
             category=Category.TASK,
             confidence=0.95,
+            needs_reply=True,
             task=ExtractedTask(title="Review contract", description="Reply by Friday"),
         )
 
@@ -194,3 +195,37 @@ async def test_dry_run_advances_through_the_queue(session_factory, monkeypatch):
     await pipeline.process_pending()  # must continue, not repeat
     assert len(calls) == 25
     assert len(set(calls)) == 25  # nothing classified twice
+
+
+async def test_no_draft_for_action_only_tasks(session_factory, live_mode, monkeypatch):
+    async def fake_classify(email):
+        return Classification(
+            category=Category.TASK,
+            confidence=0.95,
+            needs_reply=False,  # e.g. "pay this invoice"
+            task=ExtractedTask(title="Pay invoice A3421295", description="Due in 30 days"),
+        )
+
+    drafted = []
+
+    async def fake_draft(email, task):
+        drafted.append(task.title)
+        return DraftReply(reply_text="x", summary="x")
+
+    monkeypatch.setattr(pipeline_mod.clf, "classify", fake_classify)
+    monkeypatch.setattr(pipeline_mod.clf, "write_draft", fake_draft)
+
+    gmail = FakeGmail()
+    pipeline = Pipeline(gmail, session_factory, own_addr="me@gmail.com")
+    await pipeline.enqueue(["inv-1"])
+    await pipeline.process_pending()
+
+    async with session_factory() as session:
+        task_row = (await session.execute(select(Task))).scalar_one()
+        email_row = (await session.execute(select(Email))).scalar_one()
+    assert task_row.title == "Pay invoice A3421295"  # task still on the board
+    assert task_row.needs_reply is False
+    assert task_row.gmail_draft_id == ""  # but no draft
+    assert email_row.status == "done"
+    assert drafted == []
+    assert gmail.drafts_created == 0

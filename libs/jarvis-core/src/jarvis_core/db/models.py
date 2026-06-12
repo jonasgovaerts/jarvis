@@ -126,6 +126,7 @@ class Task(Base):
     description: Mapped[str] = mapped_column(Text, default="")
     priority: Mapped[str] = mapped_column(String(16), default="normal")
     status: Mapped[str] = mapped_column(String(16), default="open", index=True)  # open|done|snoozed
+    needs_reply: Mapped[bool] = mapped_column(default=True)
     gmail_message_id: Mapped[str] = mapped_column(String(64), default="")
     gmail_draft_id: Mapped[str] = mapped_column(String(64), default="")
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
