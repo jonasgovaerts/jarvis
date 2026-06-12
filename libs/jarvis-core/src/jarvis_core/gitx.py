@@ -3,6 +3,7 @@ argv, or .git/config."""
 
 from __future__ import annotations
 
+import logging
 import os
 import stat
 import subprocess
@@ -10,6 +11,8 @@ import tempfile
 from pathlib import Path
 
 from jarvis_core.envelope import AgentFailure
+
+log = logging.getLogger(__name__)
 
 
 def _askpass_env(token: str) -> tuple[dict[str, str], str]:
@@ -26,6 +29,7 @@ def _askpass_env(token: str) -> tuple[dict[str, str], str]:
 
 
 def run_git(args: list[str], cwd: Path | None = None, token: str = "") -> str:
+    log.info("git %s", " ".join(args[:6]))
     env, askpass = _askpass_env(token) if token else (dict(os.environ), "")
     try:
         result = subprocess.run(

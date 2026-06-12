@@ -7,7 +7,7 @@ import shlex
 import subprocess
 from pathlib import Path
 
-from jarvis_agents.repotools import RepoReader
+from jarvis_agents.repotools import RepoReader, toollog
 
 COMMAND_ALLOWLIST = {
     "pytest",
@@ -50,6 +50,7 @@ MAX_OUTPUT = 16_000
 class RepoEditor(RepoReader):
     def write_file(self, path: str, content: str) -> str:
         """Create or overwrite a file with the given content."""
+        toollog.info("write_file %s (%d bytes)", path, len(content))
         target = self._resolve(path)
         target.parent.mkdir(parents=True, exist_ok=True)
         target.write_text(content)
@@ -57,6 +58,7 @@ class RepoEditor(RepoReader):
 
     def edit_file(self, path: str, old_string: str, new_string: str) -> str:
         """Replace an exact, unique occurrence of old_string with new_string."""
+        toollog.info("edit_file %s", path)
         target = self._resolve(path)
         if not target.is_file():
             return f"ERROR: {path} is not a file"
@@ -77,6 +79,7 @@ class RepoEditor(RepoReader):
         Plain argv only (no shell operators); the first word must be an
         allowlisted tool such as pytest, npm, go, make.
         """
+        toollog.info("run_command: %s", command[:200])
         try:
             argv = shlex.split(command)
         except ValueError as exc:
@@ -100,6 +103,7 @@ class RepoEditor(RepoReader):
             return f"ERROR: command timed out after {COMMAND_TIMEOUT}s"
         except FileNotFoundError:
             return f"ERROR: {tool} is not installed in this image"
+        toollog.info("run_command exit=%d", result.returncode)
         output = (result.stdout + "\n" + result.stderr).strip()
         if len(output) > MAX_OUTPUT:
             output = output[:MAX_OUTPUT] + "\n…[output truncated]"

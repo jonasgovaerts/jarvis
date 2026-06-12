@@ -3,8 +3,11 @@ tools by the developer). All paths are jailed to the checkout root."""
 
 from __future__ import annotations
 
+import logging
 import re
 from pathlib import Path
+
+toollog = logging.getLogger("jarvis_agents.tools")
 
 MAX_FILE_BYTES = 64_000
 MAX_MATCHES = 100
@@ -22,6 +25,7 @@ class RepoReader:
         return path
 
     def read_file(self, path: str) -> str:
+        toollog.info("read_file %s", path)
         """Return a file's contents (truncated past 64KB)."""
         target = self._resolve(path)
         if not target.is_file():
@@ -44,6 +48,7 @@ class RepoReader:
         return "\n".join(entries) or "(empty)"
 
     def grep(self, pattern: str, glob: str = "**/*") -> str:
+        toollog.info("grep %r glob=%s", pattern[:80], glob)
         """Search files with a regex; returns path:line:text matches."""
         try:
             rx = re.compile(pattern)

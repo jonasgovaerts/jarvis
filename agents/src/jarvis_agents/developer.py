@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import asyncio
 import hashlib
+import logging
 import tempfile
 from pathlib import Path
 
@@ -21,6 +22,8 @@ from jarvis_agents.devtools import RepoEditor
 from jarvis_core import gitx
 from jarvis_core.envelope import AgentFailure, AgentResultEnvelope, AgentStage, success
 from jarvis_core.llm import build_model
+
+log = logging.getLogger(__name__)
 
 MAX_REQUESTS = 60
 
@@ -71,6 +74,7 @@ async def _develop(ctx: AgentContext) -> AgentResultEnvelope:
         gitx.run_git(["fetch", "origin", branch], cwd=workdir, token=token)
         gitx.run_git(["checkout", branch], cwd=workdir)
         replace_remote = False
+        log.info("continuing fix-loop on existing branch %s", branch)
     else:
         gitx.run_git(["checkout", "-b", branch], cwd=workdir)
         # A prior attempt may have pushed this branch and then died before
@@ -81,6 +85,8 @@ async def _develop(ctx: AgentContext) -> AgentResultEnvelope:
             ["ls-remote", "--heads", "origin", branch], cwd=workdir, token=token
         )
         replace_remote = leftover.strip() != ""
+        if replace_remote:
+            log.info("orphaned remote branch %s found — will replace it", branch)
 
     editor = RepoEditor(workdir)
     agent = Agent(
@@ -106,7 +112,9 @@ async def _develop(ctx: AgentContext) -> AgentResultEnvelope:
         )
     prompt += f"\n\n## Repository layout\n```\n{editor.tree_summary()}\n```"
 
+    log.info("starting implementation loop (request budget %d)", MAX_REQUESTS)
     result = await agent.run(prompt, usage_limits=UsageLimits(request_limit=MAX_REQUESTS))
+    log.info("model loop finished after %d requests", result.usage().requests)
     summary = result.output
 
     if not gitx.run_git(["status", "--porcelain"], cwd=workdir).strip():
@@ -129,6 +137,7 @@ async def _develop(ctx: AgentContext) -> AgentResultEnvelope:
         pr = await forge.find_pull_request(ctx.repo_ref, head=branch)
         if pr is None:
             base = await forge.get_default_branch(ctx.repo_ref)
+            log.info("opening pull request for %s", branch)
             pr = await forge.create_pull_request(
                 ctx.repo_ref,
                 head=branch,

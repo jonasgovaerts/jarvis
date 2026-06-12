@@ -10,6 +10,8 @@ CR status.
 from __future__ import annotations
 
 import argparse
+import logging
+import os
 import sys
 import traceback
 
@@ -17,10 +19,27 @@ from jarvis_core.envelope import AgentFailure, AgentStage, failure, write_termin
 
 
 def main() -> int:
+    # Jobs are observed via `kubectl logs`; everything goes to stdout.
+    logging.basicConfig(
+        level=os.getenv("JARVIS_LOG_LEVEL", "INFO"),
+        format="%(asctime)s %(levelname)s %(name)s: %(message)s",
+        datefmt="%H:%M:%S",
+        stream=sys.stdout,
+        force=True,
+    )
+    log = logging.getLogger("jarvis_agents")
+
     parser = argparse.ArgumentParser(prog="jarvis-agent")
     parser.add_argument("stage", choices=[s.value for s in AgentStage])
     args = parser.parse_args()
     stage = AgentStage(args.stage)
+    log.info(
+        "stage=%s workitem=%s/%s model=%s",
+        stage.value,
+        os.getenv("JARVIS_WORKITEM_NAMESPACE", "?"),
+        os.getenv("JARVIS_WORKITEM_NAME", "?"),
+        os.getenv("JARVIS_MODEL", "?"),
+    )
 
     try:
         runner = _resolve(stage)
@@ -32,6 +51,10 @@ def main() -> int:
         traceback.print_exc()
         envelope = failure(stage, reason=type(exc).__name__, message=str(exc), retryable=False)
 
+    if envelope.outcome == "success":
+        log.info("done: %s", envelope.result)
+    else:
+        log.error("failed: %s — %s", envelope.error.reason, envelope.error.message)
     try:
         write_termination_message(envelope)
     except OSError:

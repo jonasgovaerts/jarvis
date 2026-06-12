@@ -4,6 +4,7 @@ NotActionable, grounded in a shallow clone of the repository."""
 from __future__ import annotations
 
 import asyncio
+import logging
 import tempfile
 from enum import StrEnum
 from pathlib import Path
@@ -16,6 +17,8 @@ from jarvis_agents.repotools import RepoReader
 from jarvis_core import gitx, k8s
 from jarvis_core.envelope import AgentResultEnvelope, AgentStage, success
 from jarvis_core.llm import build_model
+
+log = logging.getLogger(__name__)
 
 
 class Verdict(StrEnum):
@@ -56,6 +59,7 @@ def run() -> AgentResultEnvelope:
 
 async def _analyze(ctx: AgentContext) -> AgentResultEnvelope:
     issue = await _load_issue(ctx)
+    log.info("analyzing %r", issue["title"][:120])
 
     workdir = Path(tempfile.mkdtemp(prefix="jarvis-")) / "repo"
     gitx.clone(ctx.clone_url, workdir, token=repo_token(), depth=1)
@@ -74,6 +78,7 @@ async def _analyze(ctx: AgentContext) -> AgentResultEnvelope:
         f"Labels: {', '.join(issue['labels']) or '(none)'}\n\n"
         f"## Repository layout\n```\n{reader.tree_summary()}\n```"
     )
+    log.info("invoking model for verdict")
     result = await agent.run(prompt)
     outcome = result.output
 
@@ -85,6 +90,7 @@ async def _analyze(ctx: AgentContext) -> AgentResultEnvelope:
         owner=ctx.workitem,
     )
 
+    log.info("verdict=%s confidence=%s", outcome.verdict.value, outcome.confidence)
     await _comment_on_issue(ctx, outcome)
 
     return success(
@@ -128,9 +134,7 @@ async def _comment_on_issue(ctx: AgentContext, outcome: AnalysisOutcome) -> None
     try:
         await forge.create_issue_comment(ctx.repo_ref, source["issue"]["number"], body)
     except Exception:  # noqa: BLE001 - never fail analysis over a comment
-        import logging
-
-        logging.getLogger(__name__).exception("issue comment failed")
+        log.exception("issue comment failed")
     finally:
         await forge.aclose()
 

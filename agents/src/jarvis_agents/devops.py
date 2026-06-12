@@ -7,6 +7,7 @@ The LLM is only invoked on failure — green runs cost zero tokens.
 from __future__ import annotations
 
 import asyncio
+import logging
 import os
 
 from pydantic import BaseModel, Field
@@ -15,6 +16,8 @@ from pydantic_ai import Agent
 from jarvis_agents.context import AgentContext, load_context
 from jarvis_core.envelope import AgentFailure, AgentResultEnvelope, AgentStage, success
 from jarvis_core.llm import build_model
+
+log = logging.getLogger(__name__)
 
 POLL_INTERVAL = int(os.getenv("JARVIS_CI_POLL_SECONDS", "30"))
 # The Job's activeDeadlineSeconds is the hard stop; this is the soft budget.
@@ -54,6 +57,8 @@ async def _watch_ci(ctx: AgentContext) -> AgentResultEnvelope:
                 if not checks:
                     return await _passed(ctx, forge, pr_number, auto_merge, url="")
 
+            done = sum(1 for c in checks if c.finished_ok or c.finished_bad)
+            log.info("checks: %d/%d finished", done, len(checks))
             failed = [c for c in checks if c.finished_bad]
             if failed:
                 diagnosis = await _diagnose(ctx, failed)

@@ -8,6 +8,7 @@ inspects the GitOps manifests and proposes the configuration fix itself.
 from __future__ import annotations
 
 import asyncio
+import logging
 import tempfile
 from pathlib import Path
 
@@ -20,6 +21,8 @@ from jarvis_agents.devtools import RepoEditor
 from jarvis_core import gitx
 from jarvis_core.envelope import AgentFailure, AgentResultEnvelope, AgentStage, success
 from jarvis_core.llm import build_model
+
+log = logging.getLogger(__name__)
 
 
 class RolloutDecision(BaseModel):
@@ -55,6 +58,7 @@ async def _check_rollout(ctx: AgentContext) -> AgentResultEnvelope:
         )
 
     decision = await _decide(ctx)
+    log.info("rollout decision=%s reason=%s", decision.decision, decision.reason[:160])
     if decision.decision != "Required":
         return success(AgentStage.SRE, {"decision": "NotRequired", "reason": decision.reason})
 
@@ -63,7 +67,9 @@ async def _check_rollout(ctx: AgentContext) -> AgentResultEnvelope:
     # image that does not exist yet.
     forge = ctx.forge()
     try:
+        log.info("waiting for the merge commit's image build (%s)", merge_sha[:7])
         await wait_for_merge_build(forge, ctx.repo_ref, merge_sha)
+        log.info("merge build green — bumping gitops")
     finally:
         await forge.aclose()
 
