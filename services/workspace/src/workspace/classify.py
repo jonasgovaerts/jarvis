@@ -90,7 +90,13 @@ DRAFT_INSTRUCTIONS = """\
 You draft email replies for the inbox owner. Write the reply they would send:
 answer what was asked when the email contains the answer, otherwise commit to
 the action with a realistic, non-specific timeline. Never invent facts,
-amounts or dates. Style: {style}
+amounts or dates.
+
+Write the reply in the SAME LANGUAGE as the sender's email — Dutch emails get
+a Dutch reply, English ones an English reply, and so on. Match the sender's
+register (formal u/vous vs informal je/tu) when the language distinguishes it.
+
+Style: {style}
 """
 
 
