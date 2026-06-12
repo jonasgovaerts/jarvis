@@ -13,7 +13,7 @@ import argparse
 import sys
 import traceback
 
-from jarvis_core.envelope import AgentStage, failure, write_termination_message
+from jarvis_core.envelope import AgentFailure, AgentStage, failure, write_termination_message
 
 
 def main() -> int:
@@ -25,6 +25,9 @@ def main() -> int:
     try:
         runner = _resolve(stage)
         envelope = runner()
+    except AgentFailure as exc:
+        traceback.print_exc()
+        envelope = failure(stage, reason=exc.reason, message=exc.message, retryable=exc.retryable)
     except Exception as exc:  # noqa: BLE001 - the envelope is the error channel
         traceback.print_exc()
         envelope = failure(stage, reason=type(exc).__name__, message=str(exc), retryable=False)

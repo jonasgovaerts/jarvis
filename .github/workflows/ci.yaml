@@ -157,6 +157,17 @@ jobs:
       component: gateway
       dockerfile: services/gateway/Dockerfile
 
+  build-issue-watcher:
+    needs: [changes, lint-test-python]
+    if: github.event_name == 'push' && needs.changes.outputs.issue-watcher == 'true'
+    uses: ./.github/workflows/build-image.yaml
+    permissions:
+      contents: read
+      packages: write
+    with:
+      component: issue-watcher
+      dockerfile: services/issue-watcher/Dockerfile
+
   build-agents:
     needs: [changes, lint-test-python]
     if: github.event_name == 'push' && needs.changes.outputs.agents == 'true'
@@ -182,12 +193,13 @@ jobs:
   # --- gitops image pin (main only; ArgoCD picks the commit up) -------------
 
   deploy-bump:
-    needs: [changes, build-gateway, build-agents, build-operator]
+    needs: [changes, build-gateway, build-agents, build-operator, build-issue-watcher]
     if: >-
       github.ref == 'refs/heads/main' && !cancelled() &&
       (needs.build-gateway.result == 'success' ||
        needs.build-agents.result == 'success' ||
-       needs.build-operator.result == 'success')
+       needs.build-operator.result == 'success' ||
+       needs.build-issue-watcher.result == 'success')
     runs-on: ubuntu-24.04
     permissions:
       contents: write
@@ -209,6 +221,10 @@ jobs:
           if [ "${{ needs.build-agents.result }}" = "success" ]; then
             yq -i ".data.agentImage = \"ghcr.io/${{ github.repository }}/agents:$TAG\"" \
               deploy/apps/operator/jarvis-defaults.yaml
+          fi
+          if [ "${{ needs.build-issue-watcher.result }}" = "success" ]; then
+            (cd deploy/apps/issue-watcher/overlays/prod && kustomize edit set image \
+              ghcr.io/${{ github.repository }}/issue-watcher=ghcr.io/${{ github.repository }}/issue-watcher:$TAG)
           fi
       - name: Commit and push (rebase-retry for concurrent bumps)
         run: |

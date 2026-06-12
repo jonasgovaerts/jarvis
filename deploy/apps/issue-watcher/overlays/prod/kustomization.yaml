@@ -1,0 +1,8 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+# No namespace transformer here: rbac.yaml spans jarvis-system (SA) and
+# jarvis (Role/RoleBinding); namespaces are explicit per resource.
+resources:
+  - ../../base
+images:
+  - name: ghcr.io/jonasgovaerts/jarvis/issue-watcher

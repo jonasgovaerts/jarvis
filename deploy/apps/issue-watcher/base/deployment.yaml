@@ -1,0 +1,45 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: issue-watcher
+  namespace: jarvis-system
+  labels:
+    app.kubernetes.io/name: issue-watcher
+    app.kubernetes.io/part-of: jarvis
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: issue-watcher
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: issue-watcher
+    spec:
+      serviceAccountName: issue-watcher
+      containers:
+        - name: issue-watcher
+          image: ghcr.io/jonasgovaerts/jarvis/issue-watcher:latest # pinned by deploy-bump
+          ports:
+            - containerPort: 8000
+          env:
+            - name: WORKITEM_NAMESPACE
+              value: jarvis
+            - name: POLL_INTERVAL_SECONDS
+              value: "60"
+          readinessProbe:
+            httpGet:
+              path: /api/readyz
+              port: 8000
+            initialDelaySeconds: 5
+          livenessProbe:
+            httpGet:
+              path: /api/healthz
+              port: 8000
+            initialDelaySeconds: 10
+          resources:
+            requests:
+              cpu: 25m
+              memory: 96Mi
+            limits:
+              memory: 256Mi

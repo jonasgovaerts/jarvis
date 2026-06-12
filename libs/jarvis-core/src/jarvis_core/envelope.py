@@ -35,6 +35,17 @@ class AgentError(BaseModel):
     retryable: bool
 
 
+class AgentFailure(Exception):
+    """Raise anywhere in an agent to fail the stage with explicit retry
+    semantics; the CLI turns it into a failure envelope."""
+
+    def __init__(self, reason: str, message: str, *, retryable: bool):
+        super().__init__(f"{reason}: {message}")
+        self.reason = reason
+        self.message = message
+        self.retryable = retryable
+
+
 class AgentResultEnvelope(BaseModel):
     version: Literal[1] = 1
     outcome: Literal["success", "failure"]
