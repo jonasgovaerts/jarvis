@@ -113,9 +113,9 @@ jobs:
         with:
           go-version-file: operator/go.mod
           cache-dependency-path: operator/go.sum
-      - uses: golangci/golangci-lint-action@v6
-        with:
-          working-directory: operator
+      # The repo pins golangci-lint v2 + a custom logcheck plugin; the Makefile
+      # target builds the right binary (the marketplace action installs v1).
+      - run: make -C operator lint
       - run: make -C operator test
       - name: Fail on CRD/RBAC manifest drift
         run: |
