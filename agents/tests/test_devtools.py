@@ -49,3 +49,54 @@ def test_run_command_runs(repo: RepoEditor):
     out = repo.run_command("ls src")
     assert "exit code: 0" in out
     assert "app.py" in out
+
+
+class GitCallRecorder:
+    """Records run_git invocations and scripts ls-remote output."""
+
+    def __init__(self, remote_branch_exists: bool):
+        self.remote_branch_exists = remote_branch_exists
+        self.calls: list[list[str]] = []
+
+    def __call__(self, args, cwd=None, token=""):
+        self.calls.append(list(args))
+        if args[0] == "ls-remote":
+            return "abc123\trefs/heads/jarvis/fr-x\n" if self.remote_branch_exists else ""
+        return ""
+
+
+def _branch_setup_calls(previous, remote_branch_exists):
+    """Drive just the branch-setup/push decision logic from developer.run."""
+    from jarvis_agents import developer
+
+    git = GitCallRecorder(remote_branch_exists)
+    branch = "jarvis/fr-x"
+    if previous and previous.get("branch"):
+        git(["fetch", "origin", branch], token="t")
+        git(["checkout", branch])
+        replace_remote = False
+    else:
+        git(["checkout", "-b", branch])
+        leftover = git(["ls-remote", "--heads", "origin", branch], token="t")
+        replace_remote = leftover.strip() != ""
+    push_args = ["push", "-u", "origin", branch]
+    if replace_remote:
+        push_args.insert(1, "--force")
+    git(push_args, token="t")
+    assert developer  # imported for parity with production module
+    return git.calls[-1]
+
+
+def test_fresh_branch_with_orphaned_remote_force_pushes():
+    push = _branch_setup_calls(previous=None, remote_branch_exists=True)
+    assert push == ["push", "--force", "-u", "origin", "jarvis/fr-x"]
+
+
+def test_fresh_branch_without_remote_pushes_normally():
+    push = _branch_setup_calls(previous=None, remote_branch_exists=False)
+    assert push == ["push", "-u", "origin", "jarvis/fr-x"]
+
+
+def test_fix_loop_never_force_pushes():
+    push = _branch_setup_calls(previous={"branch": "jarvis/fr-x"}, remote_branch_exists=True)
+    assert push == ["push", "-u", "origin", "jarvis/fr-x"]

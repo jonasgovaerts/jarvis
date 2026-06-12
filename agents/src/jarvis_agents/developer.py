@@ -70,8 +70,17 @@ async def _develop(ctx: AgentContext) -> AgentResultEnvelope:
         # Continue the existing PR branch on fix loops.
         gitx.run_git(["fetch", "origin", branch], cwd=workdir, token=token)
         gitx.run_git(["checkout", branch], cwd=workdir)
+        replace_remote = False
     else:
         gitx.run_git(["checkout", "-b", branch], cwd=workdir)
+        # A prior attempt may have pushed this branch and then died before
+        # its envelope recorded the result. Nothing references that history
+        # (no recorded development result, branch is jarvis-owned), so this
+        # fresh attempt replaces it instead of bouncing off non-fast-forward.
+        leftover = gitx.run_git(
+            ["ls-remote", "--heads", "origin", branch], cwd=workdir, token=token
+        )
+        replace_remote = leftover.strip() != ""
 
     editor = RepoEditor(workdir)
     agent = Agent(
@@ -109,7 +118,10 @@ async def _develop(ctx: AgentContext) -> AgentResultEnvelope:
 
     gitx.run_git(["add", "-A"], cwd=workdir)
     gitx.run_git(["commit", "-m", summary.commit_message], cwd=workdir)
-    gitx.run_git(["push", "-u", "origin", branch], cwd=workdir, token=token)
+    push_args = ["push", "-u", "origin", branch]
+    if replace_remote:
+        push_args.insert(1, "--force")
+    gitx.run_git(push_args, cwd=workdir, token=token)
     head_sha = gitx.run_git(["rev-parse", "HEAD"], cwd=workdir).strip()
 
     forge = ctx.forge()
