@@ -5,4 +5,4 @@ resources:
 images:
 - name: ghcr.io/jonasgovaerts/jarvis/frontend
   newName: ghcr.io/jonasgovaerts/jarvis/frontend
-  newTag: sha-00525d1
+  newTag: sha-17586e0
