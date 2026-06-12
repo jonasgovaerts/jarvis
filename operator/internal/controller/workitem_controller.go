@@ -79,7 +79,7 @@ type WorkItemReconciler struct {
 // +kubebuilder:rbac:groups=jarvis.dev,resources=workitems/status,verbs=get;update;patch
 // +kubebuilder:rbac:groups=jarvis.dev,resources=workitems/finalizers,verbs=update
 // +kubebuilder:rbac:groups=jarvis.dev,resources=managedrepositories,verbs=get;list;watch
-// +kubebuilder:rbac:groups=batch,resources=jobs,verbs=get;list;watch;create;delete
+// +kubebuilder:rbac:groups=batch,resources=jobs,verbs=get;list;watch;create;delete;deletecollection
 // +kubebuilder:rbac:groups="",resources=pods,verbs=get;list;watch
 // +kubebuilder:rbac:groups="",resources=secrets,verbs=get
 // +kubebuilder:rbac:groups="",resources=events,verbs=create;patch
@@ -691,6 +691,15 @@ func (r *WorkItemReconciler) handleRequestedAction(ctx context.Context, orig, wi
 		if wi.Status.Phase != jarvisv1alpha1.PhaseFailed {
 			log.Info("retry ignored: workitem not Failed", "phase", wi.Status.Phase)
 			return ctrl.Result{}, nil
+		}
+		// Attempt counters restart at 0, so stale Jobs from the failed run
+		// would shadow the fresh ones — delete them first.
+		if err := r.DeleteAllOf(ctx, &batchv1.Job{},
+			client.InNamespace(wi.Namespace),
+			client.MatchingLabels{jarvisv1alpha1.LabelWorkItem: wi.Name},
+			client.PropagationPolicy(metav1.DeletePropagationBackground),
+		); err != nil {
+			return ctrl.Result{}, err
 		}
 		wi.Status = jarvisv1alpha1.WorkItemStatus{
 			Phase:              jarvisv1alpha1.PhasePending,

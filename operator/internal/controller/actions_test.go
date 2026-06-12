@@ -22,6 +22,7 @@ import (
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
@@ -108,9 +109,25 @@ var _ = Describe("Dashboard card actions", func() {
 		Expect(wi.Annotations).NotTo(HaveKey(jarvisv1alpha1.AnnotationAction))
 	})
 
-	It("retry restarts a Failed item from scratch", func() {
+	It("retry restarts a Failed item from scratch and removes stale jobs", func() {
 		_, wi := makeRepoAndItem("retry")
 		reconcile(wi)
+		staleJob := &batchv1.Job{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      wi.Name + "-analyzer-r0",
+				Namespace: ns,
+				Labels:    map[string]string{jarvisv1alpha1.LabelWorkItem: wi.Name},
+			},
+			Spec: batchv1.JobSpec{
+				Template: corev1.PodTemplateSpec{
+					Spec: corev1.PodSpec{
+						RestartPolicy: corev1.RestartPolicyNever,
+						Containers:    []corev1.Container{{Name: "agent", Image: "stub"}},
+					},
+				},
+			},
+		}
+		Expect(k8sClient.Create(ctx, staleJob)).To(Succeed())
 		setPhase(wi, func(s *jarvisv1alpha1.WorkItemStatus) {
 			s.Phase = jarvisv1alpha1.PhaseFailed
 			s.FailureReason = "Boom"
@@ -122,6 +139,13 @@ var _ = Describe("Dashboard card actions", func() {
 		Expect(wi.Status.Phase).To(Equal(jarvisv1alpha1.PhasePending))
 		Expect(wi.Status.FailureReason).To(BeEmpty())
 		Expect(wi.Status.Retries).To(BeEmpty())
+
+		// The stale job must be gone (or terminating) so attempt 0 reruns fresh.
+		Eventually(func() bool {
+			job := &batchv1.Job{}
+			err := k8sClient.Get(ctx, types.NamespacedName{Name: staleJob.Name, Namespace: ns}, job)
+			return err != nil || !job.DeletionTimestamp.IsZero()
+		}, "5s", "250ms").Should(BeTrue())
 	})
 
 	It("approve merges the PR and moves to RolloutCheck", func() {
