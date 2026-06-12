@@ -11,12 +11,12 @@ patches:
 images:
   - name: controller
     newName: ghcr.io/jonasgovaerts/jarvis/operator
-    newTag: sha-cec6cec
+    newTag: sha-277254f
 # Name-hashed so any change rolls the operator automatically (it reads these
 # as env at startup). deploy-bump rewrites the agentImage literal with yq.
 configMapGenerator:
   - literals:
-      - agentImage=ghcr.io/jonasgovaerts/jarvis/agents:sha-b381559
+      - agentImage=ghcr.io/jonasgovaerts/jarvis/agents:sha-277254f
       - defaultModel=gemini
       - llmBaseUrl=http://litellm.jarvis-platform.svc:4000
     name: jarvis-defaults
