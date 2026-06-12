@@ -1,0 +1,26 @@
+{
+  "description": "One row of a workflow's phase history (gateway projection of NATS events).",
+  "properties": {
+    "subject": {
+      "title": "Subject",
+      "type": "string"
+    },
+    "time": {
+      "format": "date-time",
+      "title": "Time",
+      "type": "string"
+    },
+    "data": {
+      "additionalProperties": true,
+      "title": "Data",
+      "type": "object"
+    }
+  },
+  "required": [
+    "subject",
+    "time"
+  ],
+  "title": "WorkflowEvent",
+  "type": "object",
+  "$schema": "https://json-schema.org/draft/2020-12/schema"
+}

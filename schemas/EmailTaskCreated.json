@@ -1,0 +1,44 @@
+{
+  "properties": {
+    "taskId": {
+      "title": "Taskid",
+      "type": "string"
+    },
+    "gmailMessageId": {
+      "title": "Gmailmessageid",
+      "type": "string"
+    },
+    "threadId": {
+      "title": "Threadid",
+      "type": "string"
+    },
+    "subject": {
+      "title": "Subject",
+      "type": "string"
+    },
+    "fromAddr": {
+      "title": "Fromaddr",
+      "type": "string"
+    },
+    "title": {
+      "title": "Title",
+      "type": "string"
+    },
+    "priority": {
+      "default": "normal",
+      "title": "Priority",
+      "type": "string"
+    }
+  },
+  "required": [
+    "taskId",
+    "gmailMessageId",
+    "threadId",
+    "subject",
+    "fromAddr",
+    "title"
+  ],
+  "title": "EmailTaskCreated",
+  "type": "object",
+  "$schema": "https://json-schema.org/draft/2020-12/schema"
+}

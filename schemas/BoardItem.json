@@ -1,0 +1,101 @@
+{
+  "description": "One card on the kanban board \u2014 a WorkItem projected for the UI.",
+  "properties": {
+    "name": {
+      "title": "Name",
+      "type": "string"
+    },
+    "repository": {
+      "title": "Repository",
+      "type": "string"
+    },
+    "title": {
+      "title": "Title",
+      "type": "string"
+    },
+    "sourceType": {
+      "enum": [
+        "Issue",
+        "FeatureRequest"
+      ],
+      "title": "SourceType",
+      "type": "string"
+    },
+    "phase": {
+      "enum": [
+        "Pending",
+        "Analyzing",
+        "Developing",
+        "AwaitingCI",
+        "AwaitingMerge",
+        "RolloutCheck",
+        "Succeeded",
+        "Failed",
+        "Skipped"
+      ],
+      "title": "WorkItemPhase",
+      "type": "string"
+    },
+    "message": {
+      "default": "",
+      "title": "Message",
+      "type": "string"
+    },
+    "verdict": {
+      "anyOf": [
+        {
+          "enum": [
+            "CodeChange",
+            "Misconfiguration",
+            "NotActionable"
+          ],
+          "title": "AnalysisVerdict",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "prUrl": {
+      "default": "",
+      "title": "Prurl",
+      "type": "string"
+    },
+    "failed": {
+      "default": false,
+      "title": "Failed",
+      "type": "boolean"
+    },
+    "createdAt": {
+      "format": "date-time",
+      "title": "Createdat",
+      "type": "string"
+    },
+    "updatedAt": {
+      "anyOf": [
+        {
+          "format": "date-time",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Updatedat"
+    }
+  },
+  "required": [
+    "name",
+    "repository",
+    "title",
+    "sourceType",
+    "phase",
+    "createdAt"
+  ],
+  "title": "BoardItem",
+  "type": "object",
+  "$schema": "https://json-schema.org/draft/2020-12/schema"
+}

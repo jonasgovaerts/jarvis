@@ -1,0 +1,23 @@
+# LiteLLM proxy config for LOCAL DEV (docker-compose). The in-cluster config
+# lives in deploy/platform/litellm and uses sealed secrets + virtual keys.
+# Model names here are the logical names agents/services reference.
+model_list:
+  - model_name: claude-sonnet
+    litellm_params:
+      model: anthropic/claude-sonnet-4-6
+      api_key: os.environ/ANTHROPIC_API_KEY
+  - model_name: claude-haiku
+    litellm_params:
+      model: anthropic/claude-haiku-4-5-20251001
+      api_key: os.environ/ANTHROPIC_API_KEY
+  - model_name: gpt
+    litellm_params:
+      model: openai/gpt-5.2
+      api_key: os.environ/OPENAI_API_KEY
+  - model_name: gemini
+    litellm_params:
+      model: gemini/gemini-2.5-pro
+      api_key: os.environ/GEMINI_API_KEY
+
+litellm_settings:
+  drop_params: true

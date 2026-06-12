@@ -1,0 +1,40 @@
+# Local development infrastructure only — application code runs on the host
+# with hot reload (see Makefile dev-* targets).
+services:
+  nats:
+    image: nats:2.11-alpine
+    command: ["-js", "-sd", "/data", "-m", "8222"]
+    ports:
+      - "4222:4222"
+      - "8222:8222" # monitoring
+    volumes:
+      - nats-data:/data
+
+  postgres:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_USER: jarvis
+      POSTGRES_PASSWORD: jarvis
+      POSTGRES_DB: jarvis
+    ports:
+      - "5432:5432"
+    volumes:
+      - pg-data:/var/lib/postgresql/data
+
+  litellm:
+    image: ghcr.io/berriai/litellm:main-stable
+    command: ["--config", "/app/config.yaml", "--port", "4000"]
+    ports:
+      - "4000:4000"
+    volumes:
+      - ./tools/litellm.local.yaml:/app/config.yaml:ro
+    environment:
+      # Pass provider keys through from the host shell; absent keys just
+      # disable that provider locally.
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+
+volumes:
+  nats-data:
+  pg-data:

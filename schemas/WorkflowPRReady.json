@@ -1,0 +1,30 @@
+{
+  "description": "CI is green; the PR awaits a human merge. The 'ready to merge' notification.",
+  "properties": {
+    "name": {
+      "title": "Name",
+      "type": "string"
+    },
+    "repository": {
+      "title": "Repository",
+      "type": "string"
+    },
+    "prUrl": {
+      "title": "Prurl",
+      "type": "string"
+    },
+    "prNumber": {
+      "title": "Prnumber",
+      "type": "integer"
+    }
+  },
+  "required": [
+    "name",
+    "repository",
+    "prUrl",
+    "prNumber"
+  ],
+  "title": "WorkflowPRReady",
+  "type": "object",
+  "$schema": "https://json-schema.org/draft/2020-12/schema"
+}

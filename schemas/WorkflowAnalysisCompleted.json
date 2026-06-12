@@ -1,0 +1,39 @@
+{
+  "properties": {
+    "name": {
+      "title": "Name",
+      "type": "string"
+    },
+    "repository": {
+      "title": "Repository",
+      "type": "string"
+    },
+    "verdict": {
+      "enum": [
+        "CodeChange",
+        "Misconfiguration",
+        "NotActionable"
+      ],
+      "title": "AnalysisVerdict",
+      "type": "string"
+    },
+    "summary": {
+      "title": "Summary",
+      "type": "string"
+    },
+    "confidence": {
+      "default": "",
+      "title": "Confidence",
+      "type": "string"
+    }
+  },
+  "required": [
+    "name",
+    "repository",
+    "verdict",
+    "summary"
+  ],
+  "title": "WorkflowAnalysisCompleted",
+  "type": "object",
+  "$schema": "https://json-schema.org/draft/2020-12/schema"
+}

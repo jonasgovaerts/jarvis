@@ -1,0 +1,38 @@
+{
+  "properties": {
+    "name": {
+      "title": "Name",
+      "type": "string"
+    },
+    "namespace": {
+      "title": "Namespace",
+      "type": "string"
+    },
+    "repository": {
+      "title": "Repository",
+      "type": "string"
+    },
+    "sourceType": {
+      "enum": [
+        "Issue",
+        "FeatureRequest"
+      ],
+      "title": "SourceType",
+      "type": "string"
+    },
+    "title": {
+      "title": "Title",
+      "type": "string"
+    }
+  },
+  "required": [
+    "name",
+    "namespace",
+    "repository",
+    "sourceType",
+    "title"
+  ],
+  "title": "WorkflowCreated",
+  "type": "object",
+  "$schema": "https://json-schema.org/draft/2020-12/schema"
+}

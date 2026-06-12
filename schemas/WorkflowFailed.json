@@ -1,0 +1,40 @@
+{
+  "properties": {
+    "name": {
+      "title": "Name",
+      "type": "string"
+    },
+    "repository": {
+      "title": "Repository",
+      "type": "string"
+    },
+    "phase": {
+      "enum": [
+        "Pending",
+        "Analyzing",
+        "Developing",
+        "AwaitingCI",
+        "AwaitingMerge",
+        "RolloutCheck",
+        "Succeeded",
+        "Failed",
+        "Skipped"
+      ],
+      "title": "WorkItemPhase",
+      "type": "string"
+    },
+    "reason": {
+      "title": "Reason",
+      "type": "string"
+    }
+  },
+  "required": [
+    "name",
+    "repository",
+    "phase",
+    "reason"
+  ],
+  "title": "WorkflowFailed",
+  "type": "object",
+  "$schema": "https://json-schema.org/draft/2020-12/schema"
+}

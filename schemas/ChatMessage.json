@@ -1,0 +1,40 @@
+{
+  "properties": {
+    "id": {
+      "title": "Id",
+      "type": "string"
+    },
+    "sessionId": {
+      "title": "Sessionid",
+      "type": "string"
+    },
+    "role": {
+      "title": "Role",
+      "type": "string"
+    },
+    "content": {
+      "title": "Content",
+      "type": "string"
+    },
+    "workflowName": {
+      "default": "",
+      "title": "Workflowname",
+      "type": "string"
+    },
+    "createdAt": {
+      "format": "date-time",
+      "title": "Createdat",
+      "type": "string"
+    }
+  },
+  "required": [
+    "id",
+    "sessionId",
+    "role",
+    "content",
+    "createdAt"
+  ],
+  "title": "ChatMessage",
+  "type": "object",
+  "$schema": "https://json-schema.org/draft/2020-12/schema"
+}

@@ -1,0 +1,45 @@
+{
+  "properties": {
+    "taskId": {
+      "title": "Taskid",
+      "type": "string"
+    },
+    "gmailDraftId": {
+      "title": "Gmaildraftid",
+      "type": "string"
+    },
+    "threadId": {
+      "title": "Threadid",
+      "type": "string"
+    },
+    "subject": {
+      "title": "Subject",
+      "type": "string"
+    },
+    "summary": {
+      "title": "Summary",
+      "type": "string"
+    },
+    "status": {
+      "default": "pending",
+      "title": "Status",
+      "type": "string"
+    },
+    "createdAt": {
+      "format": "date-time",
+      "title": "Createdat",
+      "type": "string"
+    }
+  },
+  "required": [
+    "taskId",
+    "gmailDraftId",
+    "threadId",
+    "subject",
+    "summary",
+    "createdAt"
+  ],
+  "title": "DraftEmail",
+  "type": "object",
+  "$schema": "https://json-schema.org/draft/2020-12/schema"
+}

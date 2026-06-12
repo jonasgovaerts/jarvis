@@ -1,0 +1,50 @@
+{
+  "properties": {
+    "id": {
+      "title": "Id",
+      "type": "string"
+    },
+    "title": {
+      "title": "Title",
+      "type": "string"
+    },
+    "description": {
+      "default": "",
+      "title": "Description",
+      "type": "string"
+    },
+    "priority": {
+      "default": "normal",
+      "title": "Priority",
+      "type": "string"
+    },
+    "status": {
+      "default": "open",
+      "title": "Status",
+      "type": "string"
+    },
+    "gmailMessageId": {
+      "default": "",
+      "title": "Gmailmessageid",
+      "type": "string"
+    },
+    "gmailDraftId": {
+      "default": "",
+      "title": "Gmaildraftid",
+      "type": "string"
+    },
+    "createdAt": {
+      "format": "date-time",
+      "title": "Createdat",
+      "type": "string"
+    }
+  },
+  "required": [
+    "id",
+    "title",
+    "createdAt"
+  ],
+  "title": "UserTask",
+  "type": "object",
+  "$schema": "https://json-schema.org/draft/2020-12/schema"
+}

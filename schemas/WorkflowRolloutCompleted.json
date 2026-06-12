@@ -1,0 +1,39 @@
+{
+  "properties": {
+    "name": {
+      "title": "Name",
+      "type": "string"
+    },
+    "repository": {
+      "title": "Repository",
+      "type": "string"
+    },
+    "decision": {
+      "title": "Decision",
+      "type": "string"
+    },
+    "gitopsCommitSha": {
+      "default": "",
+      "title": "Gitopscommitsha",
+      "type": "string"
+    },
+    "gitopsPrUrl": {
+      "default": "",
+      "title": "Gitopsprurl",
+      "type": "string"
+    },
+    "argocdApp": {
+      "default": "",
+      "title": "Argocdapp",
+      "type": "string"
+    }
+  },
+  "required": [
+    "name",
+    "repository",
+    "decision"
+  ],
+  "title": "WorkflowRolloutCompleted",
+  "type": "object",
+  "$schema": "https://json-schema.org/draft/2020-12/schema"
+}

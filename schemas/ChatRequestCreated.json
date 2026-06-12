@@ -1,0 +1,29 @@
+{
+  "properties": {
+    "sessionId": {
+      "title": "Sessionid",
+      "type": "string"
+    },
+    "workflowName": {
+      "title": "Workflowname",
+      "type": "string"
+    },
+    "repository": {
+      "title": "Repository",
+      "type": "string"
+    },
+    "title": {
+      "title": "Title",
+      "type": "string"
+    }
+  },
+  "required": [
+    "sessionId",
+    "workflowName",
+    "repository",
+    "title"
+  ],
+  "title": "ChatRequestCreated",
+  "type": "object",
+  "$schema": "https://json-schema.org/draft/2020-12/schema"
+}

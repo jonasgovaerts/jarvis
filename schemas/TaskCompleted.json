@@ -1,0 +1,14 @@
+{
+  "properties": {
+    "taskId": {
+      "title": "Taskid",
+      "type": "string"
+    }
+  },
+  "required": [
+    "taskId"
+  ],
+  "title": "TaskCompleted",
+  "type": "object",
+  "$schema": "https://json-schema.org/draft/2020-12/schema"
+}

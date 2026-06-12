@@ -1,0 +1,38 @@
+[tool.uv.workspace]
+members = [
+    "libs/jarvis-core",
+    "agents",
+    "services/gateway",
+    "services/notifier",
+    "services/issue-watcher",
+    "services/workspace",
+]
+
+[dependency-groups]
+dev = [
+    "pytest>=8.3",
+    "pytest-asyncio>=0.25",
+    "ruff>=0.9",
+    "httpx>=0.28",
+]
+
+[tool.ruff]
+line-length = 100
+target-version = "py313"
+src = ["libs/jarvis-core/src", "agents/src", "services/*/src"]
+
+[tool.ruff.lint]
+select = [
+    "E",   # pycodestyle errors
+    "F",   # pyflakes
+    "I",   # isort
+    "UP",  # pyupgrade
+    "B",   # bugbear
+    "SIM", # simplify
+    "ASYNC",
+]
+ignore = ["E501"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["libs", "agents", "services"]

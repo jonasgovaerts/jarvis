@@ -1,0 +1,56 @@
+{
+  "properties": {
+    "name": {
+      "title": "Name",
+      "type": "string"
+    },
+    "repository": {
+      "title": "Repository",
+      "type": "string"
+    },
+    "fromPhase": {
+      "enum": [
+        "Pending",
+        "Analyzing",
+        "Developing",
+        "AwaitingCI",
+        "AwaitingMerge",
+        "RolloutCheck",
+        "Succeeded",
+        "Failed",
+        "Skipped"
+      ],
+      "title": "WorkItemPhase",
+      "type": "string"
+    },
+    "toPhase": {
+      "enum": [
+        "Pending",
+        "Analyzing",
+        "Developing",
+        "AwaitingCI",
+        "AwaitingMerge",
+        "RolloutCheck",
+        "Succeeded",
+        "Failed",
+        "Skipped"
+      ],
+      "title": "WorkItemPhase",
+      "type": "string"
+    },
+    "message": {
+      "default": "",
+      "title": "Message",
+      "type": "string"
+    }
+  },
+  "required": [
+    "name",
+    "repository",
+    "fromPhase",
+    "toPhase"
+  ],
+  "title": "WorkflowPhaseChanged",
+  "type": "object",
+  "$schema": "https://json-schema.org/draft/2020-12/schema"
+}

@@ -1,0 +1,19 @@
+{
+  "properties": {
+    "taskId": {
+      "title": "Taskid",
+      "type": "string"
+    },
+    "gmailDraftId": {
+      "title": "Gmaildraftid",
+      "type": "string"
+    }
+  },
+  "required": [
+    "taskId",
+    "gmailDraftId"
+  ],
+  "title": "EmailDraftApproved",
+  "type": "object",
+  "$schema": "https://json-schema.org/draft/2020-12/schema"
+}

@@ -1,0 +1,52 @@
+{
+  "description": "A ManagedRepository CR projected for the settings page.",
+  "properties": {
+    "name": {
+      "title": "Name",
+      "type": "string"
+    },
+    "provider": {
+      "title": "Provider",
+      "type": "string"
+    },
+    "owner": {
+      "title": "Owner",
+      "type": "string"
+    },
+    "repo": {
+      "title": "Repo",
+      "type": "string"
+    },
+    "suspended": {
+      "default": false,
+      "title": "Suspended",
+      "type": "boolean"
+    },
+    "requireLabels": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Requirelabels",
+      "type": "array"
+    },
+    "gitopsRepoUrl": {
+      "default": "",
+      "title": "Gitopsrepourl",
+      "type": "string"
+    },
+    "activeWorkItems": {
+      "default": 0,
+      "title": "Activeworkitems",
+      "type": "integer"
+    }
+  },
+  "required": [
+    "name",
+    "provider",
+    "owner",
+    "repo"
+  ],
+  "title": "RepositoryInfo",
+  "type": "object",
+  "$schema": "https://json-schema.org/draft/2020-12/schema"
+}

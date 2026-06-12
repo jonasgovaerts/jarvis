@@ -1,0 +1,14 @@
+{
+  "jarvis.workflow.created": "WorkflowCreated",
+  "jarvis.workflow.phase.changed": "WorkflowPhaseChanged",
+  "jarvis.workflow.analysis.completed": "WorkflowAnalysisCompleted",
+  "jarvis.workflow.pr.opened": "WorkflowPROpened",
+  "jarvis.workflow.pr.ready": "WorkflowPRReady",
+  "jarvis.workflow.rollout.completed": "WorkflowRolloutCompleted",
+  "jarvis.workflow.failed": "WorkflowFailed",
+  "jarvis.chat.request.created": "ChatRequestCreated",
+  "jarvis.task.completed": "TaskCompleted",
+  "jarvis.email.task.created": "EmailTaskCreated",
+  "jarvis.email.draft.ready": "EmailDraftReady",
+  "jarvis.email.draft.approved": "EmailDraftApproved"
+}
