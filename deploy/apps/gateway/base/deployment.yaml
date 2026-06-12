@@ -38,7 +38,7 @@ spec:
             - name: OIDC_ISSUER
               value: https://authentik.jonasg.be/application/o/jarvis/
             - name: OIDC_CLIENT_ID
-              value: jarvis
+              value: ee4rq50N7419Ih9dXjDc1mBOZzWVmUMTCqNVG3IY
             - name: LLM_API_KEY
               valueFrom:
                 secretKeyRef:
