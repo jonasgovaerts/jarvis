@@ -231,7 +231,7 @@ function ReposSection() {
 
 export function SettingsPage() {
   return (
-    <div className="mx-auto max-w-4xl space-y-5 p-6">
+    <div className="mx-auto max-w-4xl space-y-5 p-3 md:p-6">
       <h1 className="font-mono text-sm font-semibold uppercase tracking-[0.3em] text-slate-200">
         Systems configuration
       </h1>
