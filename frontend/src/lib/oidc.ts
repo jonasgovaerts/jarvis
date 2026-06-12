@@ -32,6 +32,8 @@ function syncToken(user: User | null): void {
   }
 }
 
+let redirectStarted = false;
+
 /** Boot: restore an existing session or start the redirect dance. */
 export async function ensureSignedIn(): Promise<void> {
   if (manager === null) throw new Error("initOidc must run first");
@@ -40,15 +42,39 @@ export async function ensureSignedIn(): Promise<void> {
     syncToken(user);
     return;
   }
+  if (redirectStarted) return; // one navigation is plenty
+  redirectStarted = true;
   await manager.signinRedirect();
 }
 
-/** /auth/callback handler; returns the post-login path to navigate to. */
-export async function completeSignIn(): Promise<string> {
+let callbackResult: Promise<string> | null = null;
+
+/**
+ * /auth/callback handler; returns the post-login path to navigate to.
+ * Memoized: the exchange consumes a one-time state from storage, and the
+ * effect that calls this re-runs when query invalidation (triggered by the
+ * freshly-connected socket) refreshes the features object. Re-running the
+ * exchange would fail with "No matching state found in storage".
+ */
+export function completeSignIn(): Promise<string> {
   if (manager === null) throw new Error("initOidc must run first");
-  const user = await manager.signinRedirectCallback();
-  syncToken(user);
-  return "/";
+  callbackResult ??= manager
+    .signinRedirectCallback()
+    .then((user) => {
+      syncToken(user);
+      return "/";
+    })
+    .catch(async (err: unknown) => {
+      // If a concurrent/earlier run already finished the exchange, being
+      // signed in wins over the bookkeeping error.
+      const user = await manager?.getUser();
+      if (user != null && !user.expired) {
+        syncToken(user);
+        return "/";
+      }
+      throw err;
+    });
+  return callbackResult;
 }
 
 /** Re-authenticate after a 401 (expired/revoked session). */
