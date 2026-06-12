@@ -58,7 +58,56 @@ async def _check_rollout(ctx: AgentContext) -> AgentResultEnvelope:
     if decision.decision != "Required":
         return success(AgentStage.SRE, {"decision": "NotRequired", "reason": decision.reason})
 
+    # The deployable image is built by the target repo's CI run on the MERGE
+    # commit — pinning its tag before that run finishes would roll out an
+    # image that does not exist yet.
+    forge = ctx.forge()
+    try:
+        await wait_for_merge_build(forge, ctx.repo_ref, merge_sha)
+    finally:
+        await forge.aclose()
+
     return await _bump_image(ctx, gitops, merge_sha, decision.reason)
+
+
+async def wait_for_merge_build(forge, repo_ref, merge_sha: str) -> None:
+    """Block until the merge commit's checks (the image build) are green.
+
+    - any check fails → non-retryable failure (rolling out a broken build is
+      worse than stopping; the human sees MergeBuildFailed on the card)
+    - no checks appear within the grace window → repo has no CI; proceed
+    - budget exhausted while still running → retryable (operator backs off)
+    """
+    import os
+
+    poll_seconds = int(os.getenv("JARVIS_BUILD_POLL_SECONDS", "30"))
+    max_polls = int(os.getenv("JARVIS_BUILD_MAX_POLLS", "40"))
+    grace_polls = int(os.getenv("JARVIS_BUILD_GRACE_POLLS", "4"))
+
+    seen_any = False
+    for poll in range(max_polls):
+        checks = await forge.list_check_runs(repo_ref, merge_sha)
+        if checks:
+            seen_any = True
+            failed = [c for c in checks if c.finished_bad]
+            if failed:
+                names = ", ".join(c.name for c in failed)
+                raise AgentFailure(
+                    reason="MergeBuildFailed",
+                    message=f"checks failed on merge commit {merge_sha[:7]}: {names}",
+                    retryable=False,
+                )
+            if all(c.finished_ok for c in checks):
+                return
+        elif not seen_any and poll >= grace_polls:
+            return  # no CI configured on this repo — nothing to wait for
+        await asyncio.sleep(poll_seconds)
+
+    raise AgentFailure(
+        reason="MergeBuildTimeout",
+        message=f"merge commit {merge_sha[:7]} checks still running after poll budget",
+        retryable=True,
+    )
 
 
 async def _decide(ctx: AgentContext) -> RolloutDecision:

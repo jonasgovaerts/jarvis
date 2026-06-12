@@ -33,7 +33,7 @@ var defaultTimeouts = map[jarvisv1alpha1.AgentStage]int64{
 	jarvisv1alpha1.StageAnalyzer:  600,
 	jarvisv1alpha1.StageDeveloper: 3600,
 	jarvisv1alpha1.StageDevOps:    3600,
-	jarvisv1alpha1.StageSRE:       900,
+	jarvisv1alpha1.StageSRE:       2400, // includes waiting for the merge commit's image build
 }
 
 const (
