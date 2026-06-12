@@ -265,8 +265,9 @@ jobs:
               controller=ghcr.io/${{ github.repository }}/operator:$TAG)
           fi
           if [ "${{ needs.build-agents.result }}" = "success" ]; then
-            yq -i ".data.agentImage = \"ghcr.io/${{ github.repository }}/agents:$TAG\"" \
-              deploy/apps/operator/jarvis-defaults.yaml
+            yq -i "(.configMapGenerator[0].literals[] | select(test(\"^agentImage=\"))) = \
+              \"agentImage=ghcr.io/${{ github.repository }}/agents:$TAG\"" \
+              deploy/apps/operator/kustomization.yaml
           fi
           if [ "${{ needs.build-issue-watcher.result }}" = "success" ]; then
             (cd deploy/apps/issue-watcher/overlays/prod && kustomize edit set image \

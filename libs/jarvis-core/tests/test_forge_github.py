@@ -93,3 +93,18 @@ async def test_http_error_raises():
     forge = forge_with(lambda request: httpx.Response(401, json={"message": "bad"}))
     with pytest.raises(httpx.HTTPStatusError):
         await forge.list_open_issues(REPO)
+
+
+async def test_create_issue_comment():
+    def handler(request: httpx.Request) -> httpx.Response:
+        assert request.url.path == "/repos/acme/api/issues/42/comments"
+        import json
+
+        assert "Jarvis" in json.loads(request.content)["body"]
+        return httpx.Response(
+            201, json={"html_url": "https://github.com/acme/api/issues/42#issuecomment-1"}
+        )
+
+    forge = forge_with(handler)
+    url = await forge.create_issue_comment(REPO, 42, "## 🤖 Jarvis analysis\n\nok")
+    assert url.endswith("#issuecomment-1")

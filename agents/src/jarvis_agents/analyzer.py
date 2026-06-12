@@ -85,6 +85,8 @@ async def _analyze(ctx: AgentContext) -> AgentResultEnvelope:
         owner=ctx.workitem,
     )
 
+    await _comment_on_issue(ctx, outcome)
+
     return success(
         AgentStage.ANALYZER,
         {
@@ -94,6 +96,43 @@ async def _analyze(ctx: AgentContext) -> AgentResultEnvelope:
         },
         artifacts={"report": report_name},
     )
+
+
+NEXT_STEPS = {
+    Verdict.CODE_CHANGE: "Next: the developer agent will implement this and open a pull request.",
+    Verdict.MISCONFIGURATION: (
+        "Next: this looks like a deployment/configuration issue, not a code change. "
+        "The SRE agent will handle it against the GitOps manifests when a gitops "
+        "mapping is configured."
+    ),
+    Verdict.NOT_ACTIONABLE: "No automated action will be taken.",
+}
+
+
+async def _comment_on_issue(ctx: AgentContext, outcome: AnalysisOutcome) -> None:
+    """Post the verdict back where the conversation lives. Best effort: a
+    comment failure must not fail the stage."""
+    source = ctx.source
+    if source["type"] != "Issue":
+        return
+    areas = "".join(f"\n- `{a}`" for a in outcome.affected_areas)
+    body = (
+        f"## 🤖 Jarvis analysis\n\n"
+        f"**Verdict:** {outcome.verdict.value} (confidence: {outcome.confidence})\n\n"
+        f"{outcome.summary}\n"
+        + (f"\n**Affected areas:**{areas}\n" if areas else "")
+        + f"\n{NEXT_STEPS[outcome.verdict]}\n\n"
+        f"<sub>WorkItem `{ctx.workitem['metadata']['name']}`</sub>"
+    )
+    forge = ctx.forge()
+    try:
+        await forge.create_issue_comment(ctx.repo_ref, source["issue"]["number"], body)
+    except Exception:  # noqa: BLE001 - never fail analysis over a comment
+        import logging
+
+        logging.getLogger(__name__).exception("issue comment failed")
+    finally:
+        await forge.aclose()
 
 
 async def _load_issue(ctx: AgentContext) -> dict:

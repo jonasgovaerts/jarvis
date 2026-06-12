@@ -71,6 +71,15 @@ class GitHubForge:
         response.raise_for_status()
         return _to_issue(response.json())
 
+    async def create_issue_comment(self, repo: RepoRef, number: int, body: str) -> str:
+        """Comment on an issue; returns the comment URL."""
+        response = await self._client.post(
+            f"/repos/{repo.owner}/{repo.name}/issues/{number}/comments",
+            json={"body": body},
+        )
+        response.raise_for_status()
+        return response.json().get("html_url", "")
+
     async def get_default_branch(self, repo: RepoRef) -> str:
         response = await self._client.get(f"/repos/{repo.owner}/{repo.name}")
         response.raise_for_status()
