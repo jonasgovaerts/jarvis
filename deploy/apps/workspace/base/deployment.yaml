@@ -7,7 +7,7 @@ metadata:
     app.kubernetes.io/name: workspace
     app.kubernetes.io/part-of: jarvis
 spec:
-  replicas: 1
+  replicas: 0 # stopgap until the MAIL_ENABLED toggle ships
   selector:
     matchLabels:
       app.kubernetes.io/name: workspace
