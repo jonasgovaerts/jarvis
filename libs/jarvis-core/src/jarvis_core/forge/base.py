@@ -26,6 +26,33 @@ class Issue:
     state: str = "open"
 
 
+@dataclass(frozen=True)
+class PullRequest:
+    number: int
+    url: str
+    head_sha: str
+    head_ref: str
+    merged: bool = False
+    merge_sha: str = ""
+    state: str = "open"
+
+
+@dataclass(frozen=True)
+class CheckRun:
+    name: str
+    status: str  # queued | in_progress | completed
+    conclusion: str  # success | failure | cancelled | skipped | ... ("" until completed)
+    url: str = ""
+
+    @property
+    def finished_ok(self) -> bool:
+        return self.status == "completed" and self.conclusion in {"success", "skipped", "neutral"}
+
+    @property
+    def finished_bad(self) -> bool:
+        return self.status == "completed" and not self.finished_ok
+
+
 class IssueProvider(Protocol):
     """The part of a forge the issue-watcher and analyzer need."""
 

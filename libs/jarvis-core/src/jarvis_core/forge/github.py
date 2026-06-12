@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import httpx
 
-from jarvis_core.forge.base import Issue, RepoRef
+from jarvis_core.forge.base import CheckRun, Issue, PullRequest, RepoRef
 
 API = "https://api.github.com"
 
@@ -70,6 +70,73 @@ class GitHubForge:
         response = await self._client.get(f"/repos/{repo.owner}/{repo.name}/issues/{number}")
         response.raise_for_status()
         return _to_issue(response.json())
+
+    async def get_default_branch(self, repo: RepoRef) -> str:
+        response = await self._client.get(f"/repos/{repo.owner}/{repo.name}")
+        response.raise_for_status()
+        return response.json()["default_branch"]
+
+    async def create_pull_request(
+        self, repo: RepoRef, *, head: str, base: str, title: str, body: str
+    ) -> PullRequest:
+        response = await self._client.post(
+            f"/repos/{repo.owner}/{repo.name}/pulls",
+            json={"head": head, "base": base, "title": title, "body": body},
+        )
+        response.raise_for_status()
+        return _to_pr(response.json())
+
+    async def find_pull_request(self, repo: RepoRef, *, head: str) -> PullRequest | None:
+        """Open PR for a head branch, if one exists (used by CI fix loops)."""
+        response = await self._client.get(
+            f"/repos/{repo.owner}/{repo.name}/pulls",
+            params={"head": f"{repo.owner}:{head}", "state": "open"},
+        )
+        response.raise_for_status()
+        items = response.json()
+        return _to_pr(items[0]) if items else None
+
+    async def get_pull_request(self, repo: RepoRef, number: int) -> PullRequest:
+        response = await self._client.get(f"/repos/{repo.owner}/{repo.name}/pulls/{number}")
+        response.raise_for_status()
+        return _to_pr(response.json())
+
+    async def merge_pull_request(self, repo: RepoRef, number: int) -> str:
+        """Squash-merge; returns the merge commit SHA."""
+        response = await self._client.put(
+            f"/repos/{repo.owner}/{repo.name}/pulls/{number}/merge",
+            json={"merge_method": "squash"},
+        )
+        response.raise_for_status()
+        return response.json().get("sha", "")
+
+    async def list_check_runs(self, repo: RepoRef, sha: str) -> list[CheckRun]:
+        response = await self._client.get(
+            f"/repos/{repo.owner}/{repo.name}/commits/{sha}/check-runs",
+            params={"per_page": "100"},
+        )
+        response.raise_for_status()
+        return [
+            CheckRun(
+                name=raw["name"],
+                status=raw["status"],
+                conclusion=raw.get("conclusion") or "",
+                url=raw.get("html_url") or "",
+            )
+            for raw in response.json().get("check_runs", [])
+        ]
+
+
+def _to_pr(raw: dict) -> PullRequest:
+    return PullRequest(
+        number=raw["number"],
+        url=raw["html_url"],
+        head_sha=raw["head"]["sha"],
+        head_ref=raw["head"]["ref"],
+        merged=bool(raw.get("merged") or raw.get("merged_at")),
+        merge_sha=raw.get("merge_commit_sha") or "",
+        state=raw["state"],
+    )
 
 
 def _to_issue(raw: dict) -> Issue:
