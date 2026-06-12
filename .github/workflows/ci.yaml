@@ -156,3 +156,33 @@ jobs:
     with:
       component: gateway
       dockerfile: services/gateway/Dockerfile
+
+  # --- gitops image pin (main only; ArgoCD picks the commit up) -------------
+
+  deploy-bump:
+    needs: [changes, build-gateway]
+    if: github.ref == 'refs/heads/main' && needs.build-gateway.result == 'success'
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+      - name: Pin freshly built images in deploy/
+        run: |
+          TAG="sha-${GITHUB_SHA::7}"
+          (cd deploy/apps/gateway/overlays/prod && kustomize edit set image \
+            ghcr.io/${{ github.repository }}/gateway=ghcr.io/${{ github.repository }}/gateway:$TAG)
+      - name: Commit and push (rebase-retry for concurrent bumps)
+        run: |
+          git config user.name "jarvis-ci"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add deploy/
+          git diff --cached --quiet && { echo "no changes"; exit 0; }
+          git commit -m "chore(deploy): pin images for ${GITHUB_SHA::7}"
+          for attempt in 1 2 3; do
+            git push && exit 0
+            git pull --rebase
+          done
+          exit 1

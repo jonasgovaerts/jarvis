@@ -1,0 +1,17 @@
+# jarvis-platform: NATS, Postgres, LiteLLM
+# jarvis-system:   operator + services
+# jarvis:          WorkItem/ManagedRepository CRs + agent Jobs
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: jarvis-platform
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: jarvis-system
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: jarvis

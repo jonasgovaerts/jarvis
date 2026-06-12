@@ -4,7 +4,6 @@ repos:
     hooks:
       - id: check-yaml
         args: [--allow-multiple-documents]
-        exclude: ^deploy/ # kustomize/helm templates are validated by their own hook
       - id: end-of-file-fixer
       - id: trailing-whitespace
       - id: check-merge-conflict
@@ -22,5 +21,13 @@ repos:
     hooks:
       - id: gitleaks
 
-  # gofmt/go vet hooks land with operator/ ; eslint/prettier with frontend/ ;
-  # kustomize-build validation with deploy/ .
+  - repo: local
+    hooks:
+      - id: kustomize-build
+        name: validate kustomizations in deploy/
+        entry: bash -c 'set -e; for d in deploy/platform/*/ deploy/apps/*/overlays/*/; do [ -f "$d/kustomization.yaml" ] && kustomize build "$d" >/dev/null; done'
+        language: system
+        files: ^deploy/
+        pass_filenames: false
+
+  # gofmt/go vet hooks land with operator/ ; eslint/prettier with frontend/ .

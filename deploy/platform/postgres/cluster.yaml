@@ -1,0 +1,17 @@
+# CloudNativePG single-instance cluster. CNPG generates the app credentials
+# secret `jarvis-pg-app` (username/password/uri keys) in this namespace;
+# services consume it via their Deployment env.
+apiVersion: postgresql.cnpg.io/v1
+kind: Cluster
+metadata:
+  name: jarvis-pg
+spec:
+  instances: 1
+  storage:
+    size: 5Gi
+  bootstrap:
+    initdb:
+      database: jarvis
+      owner: jarvis
+  # Scheduled backups to S3-compatible storage can be added under .spec.backup
+  # once a target (MinIO/B2) exists.
