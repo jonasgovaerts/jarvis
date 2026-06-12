@@ -7,4 +7,4 @@ resources:
 images:
 - name: ghcr.io/jonasgovaerts/jarvis/issue-watcher
   newName: ghcr.io/jonasgovaerts/jarvis/issue-watcher
-  newTag: sha-34ba82a
+  newTag: sha-404ef48
