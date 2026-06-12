@@ -1,8 +1,14 @@
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { Link } from "react-router";
-import { MessageSquarePlus, Radar, Send } from "lucide-react";
+import { MessageSquarePlus, PanelLeft, Radar, Send } from "lucide-react";
 import type { ChatMessage, ChatSession } from "@jarvis/events";
-import { useChatMessages, useChatSessions, useCreateSession, useSendMessage, useUpdateSessionTitle } from "../lib/queries";
+import {
+  useChatMessages,
+  useChatSessions,
+  useCreateSession,
+  useSendMessage,
+  useUpdateSessionTitle,
+} from "../lib/queries";
 import { EmptyState } from "../components/EmptyState";
 import { formatAge } from "../lib/time";
 
@@ -115,6 +121,7 @@ function SessionItem({
 export function ChatPage() {
   const { data: sessions, isLoading: sessionsLoading } = useChatSessions();
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [sessionsOpen, setSessionsOpen] = useState(false);
   const activeId = selectedId ?? sessions?.[0]?.id ?? null;
 
   const { data: messages } = useChatMessages(activeId);
@@ -129,7 +136,10 @@ export function ChatPage() {
 
   const newSession = () => {
     createSession.mutate(undefined, {
-      onSuccess: (session) => setSelectedId(session.id),
+      onSuccess: (session) => {
+        setSelectedId(session.id);
+        setSessionsOpen(true);
+      },
     });
   };
 
@@ -141,42 +151,67 @@ export function ChatPage() {
     send.mutate(content);
   };
 
+  const sessionsList = (
+    <>
+      <div className="flex items-center justify-between border-b border-cyan-500/15 px-4 py-3">
+        <h2 className="font-mono text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-400">
+          Sessions
+        </h2>
+        <button
+          type="button"
+          onClick={newSession}
+          disabled={createSession.isPending}
+          title="New session"
+          className="rounded p-1 text-accent transition hover:bg-cyan-500/10 disabled:opacity-50"
+        >
+          <MessageSquarePlus className="h-4 w-4" />
+        </button>
+      </div>
+      <div className="flex-1 space-y-1 overflow-y-auto p-2">
+        {sessionsLoading ? (
+          <p className="px-2 py-1 font-mono text-[10px] uppercase tracking-[0.2em] text-slate-600">
+            Loading…
+          </p>
+        ) : (sessions ?? []).length === 0 ? (
+          <p className="px-2 py-2 text-xs text-slate-600">No sessions yet.</p>
+        ) : (
+          (sessions ?? []).map((session) => (
+            <SessionItem
+              key={session.id}
+              session={session}
+              isActive={session.id === activeId}
+              onClick={() => {
+                setSelectedId(session.id);
+                setSessionsOpen(false);
+              }}
+            />
+          ))
+        )}
+      </div>
+    </>
+  );
+
   return (
     <div className="flex h-full">
-      <aside className="flex w-64 shrink-0 flex-col border-r border-cyan-500/15 bg-panel/40">
-        <div className="flex items-center justify-between border-b border-cyan-500/15 px-4 py-3">
-          <h2 className="font-mono text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-400">
-            Sessions
-          </h2>
-          <button
-            type="button"
-            onClick={newSession}
-            disabled={createSession.isPending}
-            title="New session"
-            className="rounded p-1 text-accent transition hover:bg-cyan-500/10 disabled:opacity-50"
-          >
-            <MessageSquarePlus className="h-4 w-4" />
-          </button>
-        </div>
-        <div className="flex-1 space-y-1 overflow-y-auto p-2">
-          {sessionsLoading ? (
-            <p className="px-2 py-1 font-mono text-[10px] uppercase tracking-[0.2em] text-slate-600">
-              Loading…
-            </p>
-          ) : (sessions ?? []).length === 0 ? (
-            <p className="px-2 py-2 text-xs text-slate-600">No sessions yet.</p>
-          ) : (
-            (sessions ?? []).map((session) => (
-              <SessionItem
-                key={session.id}
-                session={session}
-                isActive={session.id === activeId}
-                onClick={() => setSelectedId(session.id)}
-              />
-            ))
-          )}
-        </div>
+      <aside className="hidden w-64 shrink-0 flex-col border-r border-cyan-500/15 bg-panel/40 md:flex">
+        {sessionsList}
       </aside>
+      <div
+        className={`fixed inset-y-0 left-0 z-40 w-64 transform transition-transform duration-300 md:hidden ${
+          sessionsOpen ? "translate-x-0" : "-translate-x-full"
+        }`}
+      >
+        <div className="flex h-full flex-col border-r border-cyan-500/15 bg-panel">
+          {sessionsList}
+        </div>
+      </div>
+      {sessionsOpen ? (
+        <div
+          aria-hidden
+          className="fixed inset-0 z-30 bg-black/30 md:hidden"
+          onClick={() => setSessionsOpen(false)}
+        />
+      ) : null}
 
       <section className="flex min-w-0 flex-1 flex-col">
         <div className="flex-1 space-y-3 overflow-y-auto p-6">
@@ -193,7 +228,17 @@ export function ChatPage() {
           <div ref={bottomRef} />
         </div>
 
-        <form onSubmit={submit} className="flex gap-2 border-t border-cyan-500/15 bg-panel/40 p-4">
+        <form
+          onSubmit={submit}
+          className="flex items-center gap-2 border-t border-cyan-500/15 bg-panel/40 p-4"
+        >
+          <button
+            type="button"
+            className="rounded p-2 text-slate-400 md:hidden"
+            onClick={() => setSessionsOpen(true)}
+          >
+            <PanelLeft className="h-5 w-5" />
+          </button>
           <input
             value={draft}
             onChange={(event) => setDraft(event.target.value)}
