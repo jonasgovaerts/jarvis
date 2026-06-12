@@ -47,7 +47,7 @@ export function BoardPage() {
           hint="Connected repositories are quiet. New work items appear here in real time."
         />
       ) : (
-        <div className="flex min-h-0 flex-1 gap-3 overflow-x-auto pb-2">
+        <div className="flex flex-col md:flex-row min-h-0 flex-1 gap-3 md:overflow-x-auto pb-2">
           {COLUMNS.map((column) => (
             <BoardColumn key={column} title={column} items={grouped.byColumn.get(column) ?? []} />
           ))}
