@@ -19,10 +19,14 @@ RUN --mount=type=cache,target=/root/.cache/uv \
     uv sync --frozen --no-dev --no-editable --package jarvis-agents
 
 FROM python:3.13-slim-bookworm
-# The developer/sre agents clone repositories and run project tooling.
+# The developer/sre agents clone repositories and run project tooling. The
+# verification gate runs the target repo's lint/tests, so the common
+# toolchains ship in the image: uv covers python repos (their own pinned
+# ruff/pytest via `uv run`), node/npm covers frontend checks.
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    git ca-certificates \
+    git ca-certificates nodejs npm \
     && rm -rf /var/lib/apt/lists/*
+COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/local/bin/uv
 RUN groupadd -r jarvis && useradd -r -m -g jarvis jarvis
 WORKDIR /work
 COPY --from=builder /app/.venv /app/.venv

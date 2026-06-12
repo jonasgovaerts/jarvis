@@ -17,6 +17,7 @@ from pydantic import BaseModel, Field
 from pydantic_ai import Agent
 from pydantic_ai.usage import UsageLimits
 
+from jarvis_agents import verify
 from jarvis_agents.context import AgentContext, load_context, repo_token
 from jarvis_agents.devtools import RepoEditor
 from jarvis_core import gitx
@@ -26,6 +27,8 @@ from jarvis_core.llm import build_model
 log = logging.getLogger(__name__)
 
 MAX_REQUESTS = 60
+MAX_FIX_ROUNDS = 3
+FIX_ROUND_REQUESTS = 25
 
 
 class DevelopmentSummary(BaseModel):
@@ -44,7 +47,10 @@ Implement the requested change with the provided tools:
 - Explore first: list_dir, read_file, grep. Match the existing code style.
 - Edit with edit_file (exact unique string replace) or write_file.
 - Verify your work: run the project's tests/linters with run_command where
-  the tooling exists in this environment; fix what you break.
+  the tooling exists in this environment; fix what you break. After you
+  finish, the harness runs the repository's lint and test commands itself —
+  failures come back to you and the change cannot ship until they pass, so
+  running them yourself first is faster.
 - Keep the change minimal and focused on the request. Do not refactor
   unrelated code. Do not touch CI config unless that is the task.
 - When you are done, return the structured summary. The diff must not be empty.
@@ -123,6 +129,30 @@ async def _develop(ctx: AgentContext) -> AgentResultEnvelope:
             message="agent finished without modifying any files",
             retryable=True,
         )
+
+    # Hard gate: the repo's own lint/tests must pass before anything is
+    # pushed. Failures go back into the model loop, bounded by MAX_FIX_ROUNDS.
+    for fix_round in range(MAX_FIX_ROUNDS + 1):
+        failures = await asyncio.to_thread(verify.run_checks, workdir)
+        if not failures:
+            break
+        if fix_round == MAX_FIX_ROUNDS:
+            raise AgentFailure(
+                reason="VerificationFailed",
+                message="; ".join(f.command for f in failures)[:400],
+                retryable=True,
+            )
+        log.info(
+            "verification round %d: %d check(s) failing — sending back to the model",
+            fix_round + 1,
+            len(failures),
+        )
+        result = await agent.run(
+            verify.format_feedback(failures),
+            message_history=result.all_messages(),
+            usage_limits=UsageLimits(request_limit=FIX_ROUND_REQUESTS),
+        )
+        summary = result.output
 
     gitx.run_git(["add", "-A"], cwd=workdir)
     gitx.run_git(["commit", "-m", summary.commit_message], cwd=workdir)
