@@ -1,10 +1,14 @@
 [project]
 name = "jarvis-workspace"
 version = "0.1.0"
-description = "Jarvis workspace service"
+description = "Gmail integration: classify, label, create tasks, draft replies"
 requires-python = ">=3.13"
 dependencies = [
-    "jarvis-core",
+    "jarvis-core[llm,db]",
+    "google-api-python-client>=2.150",
+    "google-auth>=2.36",
+    "fastapi>=0.115",
+    "uvicorn[standard]>=0.34",
 ]
 
 [tool.uv.sources]

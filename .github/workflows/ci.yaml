@@ -190,6 +190,17 @@ jobs:
       component: frontend
       dockerfile: frontend/Dockerfile
 
+  build-workspace:
+    needs: [changes, lint-test-python]
+    if: github.event_name == 'push' && needs.changes.outputs.workspace == 'true'
+    uses: ./.github/workflows/build-image.yaml
+    permissions:
+      contents: read
+      packages: write
+    with:
+      component: workspace
+      dockerfile: services/workspace/Dockerfile
+
   build-agents:
     needs: [changes, lint-test-python]
     if: github.event_name == 'push' && needs.changes.outputs.agents == 'true'
@@ -224,6 +235,7 @@ jobs:
         build-issue-watcher,
         build-notifier,
         build-frontend,
+        build-workspace,
       ]
     if: >-
       github.ref == 'refs/heads/main' && !cancelled() &&
@@ -232,7 +244,8 @@ jobs:
        needs.build-operator.result == 'success' ||
        needs.build-issue-watcher.result == 'success' ||
        needs.build-notifier.result == 'success' ||
-       needs.build-frontend.result == 'success')
+       needs.build-frontend.result == 'success' ||
+       needs.build-workspace.result == 'success')
     runs-on: ubuntu-24.04
     permissions:
       contents: write
@@ -266,6 +279,10 @@ jobs:
           if [ "${{ needs.build-frontend.result }}" = "success" ]; then
             (cd deploy/apps/frontend/overlays/prod && kustomize edit set image \
               ghcr.io/${{ github.repository }}/frontend=ghcr.io/${{ github.repository }}/frontend:$TAG)
+          fi
+          if [ "${{ needs.build-workspace.result }}" = "success" ]; then
+            (cd deploy/apps/workspace/overlays/prod && kustomize edit set image \
+              ghcr.io/${{ github.repository }}/workspace=ghcr.io/${{ github.repository }}/workspace:$TAG)
           fi
       - name: Commit and push (rebase-retry for concurrent bumps)
         run: |

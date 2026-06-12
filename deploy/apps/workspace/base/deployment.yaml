@@ -1,0 +1,61 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: workspace
+  namespace: jarvis-system
+  labels:
+    app.kubernetes.io/name: workspace
+    app.kubernetes.io/part-of: jarvis
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: workspace
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: workspace
+    spec:
+      containers:
+        - name: workspace
+          image: ghcr.io/jonasgovaerts/jarvis/workspace:latest # pinned by deploy-bump
+          ports:
+            - containerPort: 8000
+          env:
+            - name: NATS_URL
+              value: nats://nats.jarvis-platform.svc:4222
+            - name: LLM_BASE_URL
+              value: http://litellm.jarvis-platform.svc:4000
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: jarvis-db
+                  key: workspaceUrl
+            # Flip to "false" after watching DRY_RUN decisions in the logs.
+            - name: DRY_RUN
+              value: "true"
+          volumeMounts:
+            - name: gmail-credentials
+              mountPath: /var/run/secrets/jarvis/gmail
+              readOnly: true
+          readinessProbe:
+            httpGet:
+              path: /api/readyz
+              port: 8000
+            initialDelaySeconds: 5
+          livenessProbe:
+            httpGet:
+              path: /api/healthz
+              port: 8000
+            initialDelaySeconds: 10
+          resources:
+            requests:
+              cpu: 25m
+              memory: 128Mi
+            limits:
+              memory: 384Mi
+      volumes:
+        - name: gmail-credentials
+          secret:
+            secretName: gmail-credentials
+            optional: true # readiness reports degraded until `make google-auth`
