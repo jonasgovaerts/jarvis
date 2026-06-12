@@ -15,6 +15,11 @@ class GatewaySettings(JarvisSettings):
 
     workitem_namespace: str = "jarvis"
 
+    database_url: str = "sqlite+aiosqlite:///./jarvis-gateway.db"
+
+    # Chat model (LiteLLM logical name); base URL comes from JarvisSettings.
+    chat_model: str = "claude-sonnet"
+
 
 @lru_cache
 def settings() -> GatewaySettings:

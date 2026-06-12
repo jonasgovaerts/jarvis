@@ -1,10 +1,13 @@
 [project]
 name = "jarvis-notifier"
 version = "0.1.0"
-description = "Jarvis notifier service"
+description = "Consumes JARVIS_EVENTS and delivers notifications (Discord first)"
 requires-python = ">=3.13"
 dependencies = [
-    "jarvis-core",
+    "jarvis-core[db]",
+    "pyyaml>=6.0",
+    "fastapi>=0.115",
+    "uvicorn[standard]>=0.34",
 ]
 
 [tool.uv.sources]

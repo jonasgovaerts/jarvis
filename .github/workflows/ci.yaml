@@ -168,6 +168,28 @@ jobs:
       component: issue-watcher
       dockerfile: services/issue-watcher/Dockerfile
 
+  build-notifier:
+    needs: [changes, lint-test-python]
+    if: github.event_name == 'push' && needs.changes.outputs.notifier == 'true'
+    uses: ./.github/workflows/build-image.yaml
+    permissions:
+      contents: read
+      packages: write
+    with:
+      component: notifier
+      dockerfile: services/notifier/Dockerfile
+
+  build-frontend:
+    needs: [changes, lint-test-frontend]
+    if: github.event_name == 'push' && needs.changes.outputs.frontend == 'true'
+    uses: ./.github/workflows/build-image.yaml
+    permissions:
+      contents: read
+      packages: write
+    with:
+      component: frontend
+      dockerfile: frontend/Dockerfile
+
   build-agents:
     needs: [changes, lint-test-python]
     if: github.event_name == 'push' && needs.changes.outputs.agents == 'true'
@@ -193,13 +215,24 @@ jobs:
   # --- gitops image pin (main only; ArgoCD picks the commit up) -------------
 
   deploy-bump:
-    needs: [changes, build-gateway, build-agents, build-operator, build-issue-watcher]
+    needs:
+      [
+        changes,
+        build-gateway,
+        build-agents,
+        build-operator,
+        build-issue-watcher,
+        build-notifier,
+        build-frontend,
+      ]
     if: >-
       github.ref == 'refs/heads/main' && !cancelled() &&
       (needs.build-gateway.result == 'success' ||
        needs.build-agents.result == 'success' ||
        needs.build-operator.result == 'success' ||
-       needs.build-issue-watcher.result == 'success')
+       needs.build-issue-watcher.result == 'success' ||
+       needs.build-notifier.result == 'success' ||
+       needs.build-frontend.result == 'success')
     runs-on: ubuntu-24.04
     permissions:
       contents: write
@@ -225,6 +258,14 @@ jobs:
           if [ "${{ needs.build-issue-watcher.result }}" = "success" ]; then
             (cd deploy/apps/issue-watcher/overlays/prod && kustomize edit set image \
               ghcr.io/${{ github.repository }}/issue-watcher=ghcr.io/${{ github.repository }}/issue-watcher:$TAG)
+          fi
+          if [ "${{ needs.build-notifier.result }}" = "success" ]; then
+            (cd deploy/apps/notifier/overlays/prod && kustomize edit set image \
+              ghcr.io/${{ github.repository }}/notifier=ghcr.io/${{ github.repository }}/notifier:$TAG)
+          fi
+          if [ "${{ needs.build-frontend.result }}" = "success" ]; then
+            (cd deploy/apps/frontend/overlays/prod && kustomize edit set image \
+              ghcr.io/${{ github.repository }}/frontend=ghcr.io/${{ github.repository }}/frontend:$TAG)
           fi
       - name: Commit and push (rebase-retry for concurrent bumps)
         run: |
