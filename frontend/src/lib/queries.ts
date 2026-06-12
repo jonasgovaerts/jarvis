@@ -190,6 +190,20 @@ export function useCreateSession() {
   });
 }
 
+export function useUpdateSessionTitle() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ sessionId, title }: { sessionId: string; title: string }) =>
+      api<unknown>(`/api/chat/sessions/${encodeURIComponent(sessionId)}`, {
+        method: "PATCH",
+        body: { title },
+      }),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ["chat", "sessions"] });
+    },
+  });
+}
+
 export function chatMessagesKey(sessionId: string): readonly unknown[] {
   return ["chat", sessionId, "messages"];
 }
