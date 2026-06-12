@@ -157,11 +157,37 @@ jobs:
       component: gateway
       dockerfile: services/gateway/Dockerfile
 
+  build-agents:
+    needs: [changes, lint-test-python]
+    if: github.event_name == 'push' && needs.changes.outputs.agents == 'true'
+    uses: ./.github/workflows/build-image.yaml
+    permissions:
+      contents: read
+      packages: write
+    with:
+      component: agents
+      dockerfile: agents/Dockerfile
+
+  build-operator:
+    needs: [changes, lint-test-operator]
+    if: github.event_name == 'push' && needs.changes.outputs.operator == 'true'
+    uses: ./.github/workflows/build-image.yaml
+    permissions:
+      contents: read
+      packages: write
+    with:
+      component: operator
+      dockerfile: operator/Dockerfile
+
   # --- gitops image pin (main only; ArgoCD picks the commit up) -------------
 
   deploy-bump:
-    needs: [changes, build-gateway]
-    if: github.ref == 'refs/heads/main' && needs.build-gateway.result == 'success'
+    needs: [changes, build-gateway, build-agents, build-operator]
+    if: >-
+      github.ref == 'refs/heads/main' && !cancelled() &&
+      (needs.build-gateway.result == 'success' ||
+       needs.build-agents.result == 'success' ||
+       needs.build-operator.result == 'success')
     runs-on: ubuntu-24.04
     permissions:
       contents: write
@@ -172,8 +198,18 @@ jobs:
       - name: Pin freshly built images in deploy/
         run: |
           TAG="sha-${GITHUB_SHA::7}"
-          (cd deploy/apps/gateway/overlays/prod && kustomize edit set image \
-            ghcr.io/${{ github.repository }}/gateway=ghcr.io/${{ github.repository }}/gateway:$TAG)
+          if [ "${{ needs.build-gateway.result }}" = "success" ]; then
+            (cd deploy/apps/gateway/overlays/prod && kustomize edit set image \
+              ghcr.io/${{ github.repository }}/gateway=ghcr.io/${{ github.repository }}/gateway:$TAG)
+          fi
+          if [ "${{ needs.build-operator.result }}" = "success" ]; then
+            (cd deploy/apps/operator && kustomize edit set image \
+              controller=ghcr.io/${{ github.repository }}/operator:$TAG)
+          fi
+          if [ "${{ needs.build-agents.result }}" = "success" ]; then
+            yq -i ".data.agentImage = \"ghcr.io/${{ github.repository }}/agents:$TAG\"" \
+              deploy/apps/operator/jarvis-defaults.yaml
+          fi
       - name: Commit and push (rebase-retry for concurrent bumps)
         run: |
           git config user.name "jarvis-ci"

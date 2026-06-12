@@ -1,0 +1,11 @@
+# Platform defaults the operator reads at startup. deploy-bump rewrites
+# agentImage with yq when a new agents image is built.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: jarvis-defaults
+  namespace: jarvis-operator-system
+data:
+  agentImage: ghcr.io/jonasgovaerts/jarvis/agents:development
+  defaultModel: claude-sonnet
+  llmBaseUrl: http://litellm.jarvis-platform.svc:4000

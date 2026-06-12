@@ -30,4 +30,11 @@ repos:
         files: ^deploy/
         pass_filenames: false
 
-  # gofmt/go vet hooks land with operator/ ; eslint/prettier with frontend/ .
+      - id: go-fmt-vet
+        name: gofmt + go vet (operator)
+        entry: bash -c 'cd operator && test -z "$(gofmt -l .)" && go vet ./...'
+        language: system
+        files: ^operator/.*\.go$
+        pass_filenames: false
+
+  # eslint/prettier hooks land with frontend/ .

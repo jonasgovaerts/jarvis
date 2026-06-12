@@ -1,0 +1,398 @@
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  annotations:
+    controller-gen.kubebuilder.io/version: v0.20.1
+  name: workitems.jarvis.dev
+spec:
+  group: jarvis.dev
+  names:
+    kind: WorkItem
+    listKind: WorkItemList
+    plural: workitems
+    singular: workitem
+  scope: Namespaced
+  versions:
+  - additionalPrinterColumns:
+    - jsonPath: .status.phase
+      name: Phase
+      type: string
+    - jsonPath: .spec.repositoryRef.name
+      name: Repo
+      type: string
+    - jsonPath: .spec.source.type
+      name: Source
+      type: string
+    - jsonPath: .status.development.prUrl
+      name: PR
+      type: string
+    - jsonPath: .metadata.creationTimestamp
+      name: Age
+      type: date
+    name: v1alpha1
+    schema:
+      openAPIV3Schema:
+        description: |-
+          WorkItem is one unit of work flowing through the agent pipeline — a
+          provider issue or a chat feature request.
+        properties:
+          apiVersion:
+            description: |-
+              APIVersion defines the versioned schema of this representation of an object.
+              Servers should convert recognized schemas to the latest internal value, and
+              may reject unrecognized values.
+              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources
+            type: string
+          kind:
+            description: |-
+              Kind is a string value representing the REST resource this object represents.
+              Servers may infer this from the endpoint the client submits requests to.
+              Cannot be updated.
+              In CamelCase.
+              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds
+            type: string
+          metadata:
+            type: object
+          spec:
+            description: |-
+              WorkItemSpec defines the desired state of WorkItem. Immutable after
+              creation except suspend.
+            properties:
+              modelOverrides:
+                additionalProperties:
+                  description: ModelSpec selects an LLM via the LiteLLM proxy's logical
+                    model names.
+                  properties:
+                    maxTokens:
+                      format: int32
+                      type: integer
+                    model:
+                      description: LiteLLM logical model name, e.g. "claude-sonnet".
+                      type: string
+                    temperature:
+                      description: Stringified float to keep CRDs integer/string-only,
+                        e.g. "0.2".
+                      type: string
+                  required:
+                  - model
+                  type: object
+                description: |-
+                  Per-stage model overrides; fall back to the ManagedRepository pipeline
+                  config, then platform defaults.
+                type: object
+              repositoryRef:
+                description: Name of the ManagedRepository in the same namespace this
+                  work targets.
+                properties:
+                  name:
+                    default: ""
+                    description: |-
+                      Name of the referent.
+                      This field is effectively required, but due to backwards compatibility is
+                      allowed to be empty. Instances of this type with an empty value here are
+                      almost certainly wrong.
+                      More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names
+                    type: string
+                type: object
+                x-kubernetes-map-type: atomic
+              source:
+                description: WorkItemSource is a tagged union over the two entry points.
+                properties:
+                  featureRequest:
+                    description: FeatureRequestSource captures a chat-initiated request.
+                    properties:
+                      conversationId:
+                        type: string
+                      description:
+                        type: string
+                      requestedBy:
+                        type: string
+                    required:
+                    - description
+                    - requestedBy
+                    type: object
+                  issue:
+                    description: |-
+                      IssueSource references a provider issue. The provider-global ID is the
+                      dedupe key the issue-watcher uses for idempotent WorkItem creation.
+                    properties:
+                      id:
+                        description: Provider-global ID (GitHub node_id).
+                        type: string
+                      labels:
+                        items:
+                          type: string
+                        type: array
+                      number:
+                        type: integer
+                      provider:
+                        enum:
+                        - github
+                        - gitlab
+                        type: string
+                      title:
+                        type: string
+                      url:
+                        type: string
+                    required:
+                    - id
+                    - number
+                    - provider
+                    - title
+                    - url
+                    type: object
+                  type:
+                    description: SourceType discriminates where a WorkItem came from.
+                    enum:
+                    - Issue
+                    - FeatureRequest
+                    type: string
+                required:
+                - type
+                type: object
+              suspend:
+                description: 'Suspend pauses the pipeline: a running Job finishes,
+                  no new phase starts.'
+                type: boolean
+              ttlSecondsAfterFinished:
+                description: Delete this WorkItem N seconds after reaching a terminal
+                  phase.
+                format: int64
+                type: integer
+            required:
+            - repositoryRef
+            - source
+            type: object
+          status:
+            description: |-
+              WorkItemStatus defines the observed state of WorkItem. Only the operator
+              writes it; agents report via Job termination messages.
+            properties:
+              activeJob:
+                description: Reference to the currently running agent Job, if any.
+                properties:
+                  apiVersion:
+                    description: API version of the referent.
+                    type: string
+                  fieldPath:
+                    description: |-
+                      If referring to a piece of an object instead of an entire object, this string
+                      should contain a valid JSON/Go field access statement, such as desiredState.manifest.containers[2].
+                      For example, if the object reference is to a container within a pod, this would take on a value like:
+                      "spec.containers{name}" (where "name" refers to the name of the container that triggered
+                      the event) or if no container name is specified "spec.containers[2]" (container with
+                      index 2 in this pod). This syntax is chosen only to have some well-defined way of
+                      referencing a part of an object.
+                    type: string
+                  kind:
+                    description: |-
+                      Kind of the referent.
+                      More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds
+                    type: string
+                  name:
+                    description: |-
+                      Name of the referent.
+                      More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names
+                    type: string
+                  namespace:
+                    description: |-
+                      Namespace of the referent.
+                      More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/namespaces/
+                    type: string
+                  resourceVersion:
+                    description: |-
+                      Specific resourceVersion to which this reference is made, if any.
+                      More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#concurrency-control-and-consistency
+                    type: string
+                  uid:
+                    description: |-
+                      UID of the referent.
+                      More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#uids
+                    type: string
+                type: object
+                x-kubernetes-map-type: atomic
+              analysis:
+                description: AnalysisResult is the analyzer stage outcome.
+                properties:
+                  confidence:
+                    type: string
+                  reportRef:
+                    description: Name of the ConfigMap holding the full analysis report.
+                    type: string
+                  summary:
+                    type: string
+                  verdict:
+                    enum:
+                    - CodeChange
+                    - Misconfiguration
+                    - NotActionable
+                    type: string
+                required:
+                - summary
+                - verdict
+                type: object
+              ci:
+                description: CIResult is the devops stage outcome.
+                properties:
+                  checkSuiteUrl:
+                    type: string
+                  failureAnalysis:
+                    description: |-
+                      LLM root-cause summary, set when Status=Failed; fed back into the
+                      developer stage on fix loops.
+                    type: string
+                  mergeSha:
+                    type: string
+                  merged:
+                    type: boolean
+                  status:
+                    enum:
+                    - Pending
+                    - Running
+                    - Passed
+                    - Failed
+                    - TimedOut
+                    type: string
+                required:
+                - status
+                type: object
+              ciFixAttempts:
+                description: AwaitingCI -> Developing fix loops consumed.
+                format: int32
+                type: integer
+              completedAt:
+                format: date-time
+                type: string
+              conditions:
+                items:
+                  description: Condition contains details for one aspect of the current
+                    state of this API Resource.
+                  properties:
+                    lastTransitionTime:
+                      description: |-
+                        lastTransitionTime is the last time the condition transitioned from one status to another.
+                        This should be when the underlying condition changed.  If that is not known, then using the time when the API field changed is acceptable.
+                      format: date-time
+                      type: string
+                    message:
+                      description: |-
+                        message is a human readable message indicating details about the transition.
+                        This may be an empty string.
+                      maxLength: 32768
+                      type: string
+                    observedGeneration:
+                      description: |-
+                        observedGeneration represents the .metadata.generation that the condition was set based upon.
+                        For instance, if .metadata.generation is currently 12, but the .status.conditions[x].observedGeneration is 9, the condition is out of date
+                        with respect to the current state of the instance.
+                      format: int64
+                      minimum: 0
+                      type: integer
+                    reason:
+                      description: |-
+                        reason contains a programmatic identifier indicating the reason for the condition's last transition.
+                        Producers of specific condition types may define expected values and meanings for this field,
+                        and whether the values are considered a guaranteed API.
+                        The value should be a CamelCase string.
+                        This field may not be empty.
+                      maxLength: 1024
+                      minLength: 1
+                      pattern: ^[A-Za-z]([A-Za-z0-9_,:]*[A-Za-z0-9_])?$
+                      type: string
+                    status:
+                      description: status of the condition, one of True, False, Unknown.
+                      enum:
+                      - "True"
+                      - "False"
+                      - Unknown
+                      type: string
+                    type:
+                      description: type of condition in CamelCase or in foo.example.com/CamelCase.
+                      maxLength: 316
+                      pattern: ^([a-z0-9]([-a-z0-9]*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*/)?(([A-Za-z0-9][-A-Za-z0-9_.]*)?[A-Za-z0-9])$
+                      type: string
+                  required:
+                  - lastTransitionTime
+                  - message
+                  - reason
+                  - status
+                  - type
+                  type: object
+                type: array
+                x-kubernetes-list-map-keys:
+                - type
+                x-kubernetes-list-type: map
+              development:
+                description: DevelopmentResult is the developer stage outcome.
+                properties:
+                  branch:
+                    type: string
+                  headSha:
+                    type: string
+                  prNumber:
+                    type: integer
+                  prUrl:
+                    type: string
+                required:
+                - branch
+                - headSha
+                - prNumber
+                - prUrl
+                type: object
+              failureReason:
+                type: string
+              observedGeneration:
+                format: int64
+                type: integer
+              phase:
+                description: |-
+                  WorkItemPhase is the pipeline state machine position. Terminal phases are
+                  Succeeded, Failed and Skipped.
+                enum:
+                - Pending
+                - Analyzing
+                - Developing
+                - AwaitingCI
+                - AwaitingMerge
+                - RolloutCheck
+                - Succeeded
+                - Failed
+                - Skipped
+                type: string
+              retries:
+                additionalProperties:
+                  format: int32
+                  type: integer
+                description: Attempt count per phase, operator-managed.
+                type: object
+              rollout:
+                description: RolloutResult is the sre stage outcome.
+                properties:
+                  argocdApp:
+                    type: string
+                  decision:
+                    enum:
+                    - Required
+                    - NotRequired
+                    type: string
+                  gitopsCommitSha:
+                    type: string
+                  gitopsPrUrl:
+                    type: string
+                  reason:
+                    type: string
+                required:
+                - decision
+                type: object
+              startedAt:
+                format: date-time
+                type: string
+            type: object
+        required:
+        - spec
+        type: object
+    served: true
+    storage: true
+    subresources:
+      status: {}

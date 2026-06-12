@@ -1,0 +1,26 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: controller-manager
+  namespace: system
+spec:
+  template:
+    spec:
+      containers:
+        - name: manager
+          env:
+            - name: JARVIS_AGENT_IMAGE
+              valueFrom:
+                configMapKeyRef:
+                  name: jarvis-defaults
+                  key: agentImage
+            - name: JARVIS_DEFAULT_MODEL
+              valueFrom:
+                configMapKeyRef:
+                  name: jarvis-defaults
+                  key: defaultModel
+            - name: JARVIS_LLM_BASE_URL
+              valueFrom:
+                configMapKeyRef:
+                  name: jarvis-defaults
+                  key: llmBaseUrl

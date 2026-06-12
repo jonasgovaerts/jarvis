@@ -1,0 +1,20 @@
+apiVersion: jarvis.dev/v1alpha1
+kind: WorkItem
+metadata:
+  labels:
+    app.kubernetes.io/name: jarvis-operator
+    app.kubernetes.io/managed-by: kustomize
+  name: gh-jonasgovaerts-jarvis-playground-1
+  namespace: jarvis
+spec:
+  repositoryRef:
+    name: managedrepository-sample
+  source:
+    type: Issue
+    issue:
+      provider: github
+      id: I_sample
+      number: 1
+      url: https://github.com/jonasgovaerts/jarvis-playground/issues/1
+      title: "Sample: fix the login redirect loop"
+      labels: ["jarvis"]

@@ -1,0 +1,5 @@
+## Append samples of your project ##
+resources:
+- jarvis_v1alpha1_workitem.yaml
+- jarvis_v1alpha1_managedrepository.yaml
+# +kubebuilder:scaffold:manifestskustomizesamples

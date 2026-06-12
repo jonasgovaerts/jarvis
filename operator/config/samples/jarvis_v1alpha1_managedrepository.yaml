@@ -1,0 +1,26 @@
+apiVersion: jarvis.dev/v1alpha1
+kind: ManagedRepository
+metadata:
+  labels:
+    app.kubernetes.io/name: jarvis-operator
+    app.kubernetes.io/managed-by: kustomize
+  name: managedrepository-sample
+  namespace: jarvis
+spec:
+  provider: github
+  owner: jonasgovaerts
+  name: jarvis-playground
+  credentialsSecretRef:
+    name: repo-token-playground
+  issueSelector:
+    requireLabels: ["jarvis"]
+  pipeline:
+    maxConcurrentWorkItems: 2
+    autoMerge: false
+    agents:
+      analyzer:
+        model:
+          model: claude-haiku
+      developer:
+        model:
+          model: claude-sonnet
