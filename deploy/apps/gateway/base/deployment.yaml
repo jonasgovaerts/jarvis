@@ -30,6 +30,11 @@ spec:
                 secretKeyRef:
                   name: gateway-auth
                   key: token
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: jarvis-db
+                  key: gatewayUrl
           readinessProbe:
             httpGet:
               path: /api/readyz
