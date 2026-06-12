@@ -3,6 +3,8 @@ kind: Kustomization
 # No namespace transformer here: rbac.yaml spans jarvis-system (SA) and
 # jarvis (Role/RoleBinding); namespaces are explicit per resource.
 resources:
-  - ../../base
+- ../../base
 images:
-  - name: ghcr.io/jonasgovaerts/jarvis/issue-watcher
+- name: ghcr.io/jonasgovaerts/jarvis/issue-watcher
+  newName: ghcr.io/jonasgovaerts/jarvis/issue-watcher
+  newTag: sha-492a3b4

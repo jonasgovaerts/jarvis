@@ -1,6 +1,8 @@
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 resources:
-  - ../../base
+- ../../base
 images:
-  - name: ghcr.io/jonasgovaerts/jarvis/notifier
+- name: ghcr.io/jonasgovaerts/jarvis/notifier
+  newName: ghcr.io/jonasgovaerts/jarvis/notifier
+  newTag: sha-492a3b4
