@@ -1,0 +1,158 @@
+# Monorepo CI: one workflow, path-filtered fan-out. Jobs skip green when their
+# component didn't change (keeps required status checks usable, unlike per-
+# workflow `on.paths`). Image builds run on pushes to main/development.
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main, development]
+    tags: ["v*"]
+    paths-ignore:
+      - "deploy/**" # deploy-bump commits must not retrigger CI
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  changes:
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+      pull-requests: read
+    outputs:
+      python: ${{ steps.filter.outputs.python }}
+      contracts: ${{ steps.filter.outputs.contracts }}
+      operator: ${{ steps.filter.outputs.operator }}
+      frontend: ${{ steps.filter.outputs.frontend }}
+      gateway: ${{ steps.filter.outputs.gateway }}
+      notifier: ${{ steps.filter.outputs.notifier }}
+      issue-watcher: ${{ steps.filter.outputs.issue-watcher }}
+      workspace: ${{ steps.filter.outputs.workspace }}
+      agents: ${{ steps.filter.outputs.agents }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          # libs/** flips every Python component: services vendor jarvis-core.
+          filters: |
+            python:
+              - "libs/jarvis-core/**"
+              - "pyproject.toml"
+              - "uv.lock"
+              - "agents/**"
+              - "services/**"
+            contracts:
+              - "libs/jarvis-core/**"
+              - "schemas/**"
+              - "libs/ts/jarvis-events/**"
+              - "tools/codegen.py"
+            operator:
+              - "operator/**"
+            frontend:
+              - "frontend/**"
+              - "libs/ts/jarvis-events/**"
+            gateway: &core
+              - "libs/jarvis-core/**"
+              - "uv.lock"
+              - "services/gateway/**"
+            notifier:
+              - *core
+              - "services/notifier/**"
+            issue-watcher:
+              - *core
+              - "services/issue-watcher/**"
+            workspace:
+              - *core
+              - "services/workspace/**"
+            agents:
+              - *core
+              - "agents/**"
+
+  lint-test-python:
+    needs: changes
+    if: needs.changes.outputs.python == 'true'
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+      - run: uv sync --frozen
+      - run: uv run ruff check .
+      - run: uv run ruff format --check .
+      - run: uv run pytest -q
+
+  contracts-drift:
+    needs: changes
+    if: needs.changes.outputs.contracts == 'true'
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: uv sync --frozen
+      - run: npm --prefix libs/ts/jarvis-events ci
+      - run: make codegen
+      - name: Fail on generated-contract drift
+        run: git diff --exit-code schemas/ libs/ts/jarvis-events/src/generated/
+
+  lint-test-operator:
+    needs: changes
+    if: needs.changes.outputs.operator == 'true'
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: operator/go.mod
+          cache-dependency-path: operator/go.sum
+      - uses: golangci/golangci-lint-action@v6
+        with:
+          working-directory: operator
+      - run: make -C operator test
+      - name: Fail on CRD/RBAC manifest drift
+        run: |
+          make -C operator manifests generate
+          git diff --exit-code operator/config/ operator/api/
+
+  lint-test-frontend:
+    needs: changes
+    if: needs.changes.outputs.frontend == 'true'
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Typecheck shared events package
+        run: |
+          npm --prefix libs/ts/jarvis-events ci
+          npm --prefix libs/ts/jarvis-events run typecheck
+      - name: Lint, typecheck, test, build frontend
+        if: hashFiles('frontend/package.json') != ''
+        run: |
+          npm --prefix frontend ci
+          npm --prefix frontend run lint
+          npm --prefix frontend run typecheck
+          npm --prefix frontend run test -- --run
+          npm --prefix frontend run build
+
+  # --- image builds (push to main/development and v* tags only) -------------
+
+  build-gateway:
+    needs: [changes, lint-test-python]
+    if: github.event_name == 'push' && needs.changes.outputs.gateway == 'true'
+    uses: ./.github/workflows/build-image.yaml
+    permissions:
+      contents: read
+      packages: write
+    with:
+      component: gateway
+      dockerfile: services/gateway/Dockerfile
