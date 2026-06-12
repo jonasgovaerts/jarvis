@@ -26,6 +26,8 @@ spec:
               value: nats://nats.jarvis-platform.svc:4222
             - name: LLM_BASE_URL
               value: http://litellm.jarvis-platform.svc:4000
+            - name: CHAT_MODEL
+              value: gemini
             - name: JARVIS_TOKEN
               valueFrom:
                 secretKeyRef:

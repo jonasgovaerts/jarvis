@@ -7,5 +7,5 @@ metadata:
   namespace: jarvis-operator-system
 data:
   agentImage: ghcr.io/jonasgovaerts/jarvis/agents:sha-492a3b4
-  defaultModel: claude-sonnet
+  defaultModel: gemini
   llmBaseUrl: http://litellm.jarvis-platform.svc:4000

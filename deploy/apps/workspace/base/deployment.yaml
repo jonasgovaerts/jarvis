@@ -34,6 +34,10 @@ spec:
             # Flip to "false" after watching DRY_RUN decisions in the logs.
             - name: DRY_RUN
               value: "true"
+            - name: CLASSIFY_MODEL
+              value: gemini
+            - name: DRAFT_MODEL
+              value: gemini
           volumeMounts:
             - name: gmail-credentials
               mountPath: /var/run/secrets/jarvis/gmail
