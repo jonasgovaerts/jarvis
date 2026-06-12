@@ -7,7 +7,7 @@ metadata:
     app.kubernetes.io/name: workspace
     app.kubernetes.io/part-of: jarvis
 spec:
-  replicas: 0 # stopgap until the MAIL_ENABLED toggle ships
+  replicas: 1
   selector:
     matchLabels:
       app.kubernetes.io/name: workspace
@@ -31,6 +31,9 @@ spec:
                 secretKeyRef:
                   name: jarvis-db
                   key: workspaceUrl
+            # Master switch for the Gmail integration.
+            - name: MAIL_ENABLED
+              value: "false"
             # Dry-run was reviewed against the live inbox on 2026-06-12.
             - name: DRY_RUN
               value: "false"

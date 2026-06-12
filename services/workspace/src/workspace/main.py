@@ -38,7 +38,9 @@ async def lifespan(app: FastAPI):
             log.exception("NATS unavailable; events disabled")
 
     creds_present = await asyncio.to_thread(Path(cfg.gmail_credentials_path).is_file)
-    if creds_present:
+    if not cfg.mail_enabled:
+        log.info("mail feature disabled (MAIL_ENABLED=false); skipping Gmail entirely")
+    elif creds_present:
         gmail = GmailClient(cfg.gmail_credentials_path)
         profile = await asyncio.to_thread(gmail.get_profile)
         own_addr = profile.get("emailAddress", "")

@@ -13,6 +13,10 @@ class WorkspaceSettings(JarvisSettings):
 
     poll_interval_seconds: int = 45
 
+    # Master switch for the Gmail integration. Off: the service runs (health
+    # endpoints, future features) but never connects to Gmail or processes mail.
+    mail_enabled: bool = True
+
     # One-time catch-up: enqueue the most recent inbox messages at startup.
     # Idempotent (already-processed mail is skipped), so leaving it on only
     # costs one messages.list per pod start.

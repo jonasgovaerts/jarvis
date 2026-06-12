@@ -229,3 +229,17 @@ async def test_no_draft_for_action_only_tasks(session_factory, live_mode, monkey
     assert email_row.status == "done"
     assert drafted == []
     assert gmail.drafts_created == 0
+
+
+def test_mail_enabled_toggle_parses_from_env(monkeypatch):
+    from workspace import config
+
+    config.settings.cache_clear()
+    assert config.settings().mail_enabled is True  # default on
+
+    monkeypatch.setenv("MAIL_ENABLED", "false")
+    config.settings.cache_clear()
+    try:
+        assert config.settings().mail_enabled is False
+    finally:
+        config.settings.cache_clear()
