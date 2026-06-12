@@ -12,6 +12,8 @@ spec:
     chart: nats
     targetRevision: 1.3.x
     helm:
+      # Service must be `nats.jarvis-platform.svc` — every component points there.
+      releaseName: nats
       valuesObject:
         config:
           jetstream:
