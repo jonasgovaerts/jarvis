@@ -63,13 +63,25 @@ def create_workitem(namespace: str, body: dict) -> bool:
 
 def patch_workitem(name: str, namespace: str, patch: dict) -> None:
     client.CustomObjectsApi().patch_namespaced_custom_object(
-        GROUP, VERSION, namespace, "workitems", name, patch
+        GROUP,
+        VERSION,
+        namespace,
+        "workitems",
+        name,
+        patch,
+        _content_type="application/merge-patch+json",
     )
 
 
 def patch_managed_repository_status(name: str, namespace: str, status_patch: dict) -> None:
     client.CustomObjectsApi().patch_namespaced_custom_object_status(
-        GROUP, VERSION, namespace, "managedrepositories", name, {"status": status_patch}
+        GROUP,
+        VERSION,
+        namespace,
+        "managedrepositories",
+        name,
+        {"status": status_patch},
+        _content_type="application/merge-patch+json",
     )
 
 

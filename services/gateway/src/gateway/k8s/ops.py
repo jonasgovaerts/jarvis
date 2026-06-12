@@ -23,6 +23,9 @@ async def request_action(namespace: str, name: str, action: str) -> None:
             "workitems",
             name,
             {"metadata": {"annotations": {ANNOTATION_ACTION: action}}},
+            # kubernetes_asyncio defaults to json-patch (array-of-ops); this
+            # body is a strategic/merge patch.
+            _content_type="application/merge-patch+json",
         )
 
 
