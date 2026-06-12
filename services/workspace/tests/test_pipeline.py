@@ -177,3 +177,20 @@ async def test_backfill_respects_flag(session_factory, monkeypatch):
         assert sorted(r.gmail_message_id for r in rows) == ["old-1", "old-2"]
     finally:
         config.settings.cache_clear()
+
+
+async def test_dry_run_advances_through_the_queue(session_factory, monkeypatch):
+    calls = []
+
+    async def fake_classify(email):
+        calls.append(email.gmail_message_id)
+        return Classification(category=Category.NEWSLETTER, confidence=0.9)
+
+    monkeypatch.setattr(pipeline_mod.clf, "classify", fake_classify)
+
+    pipeline = Pipeline(FakeGmail(), session_factory)
+    await pipeline.enqueue([f"m{i}" for i in range(25)])
+    await pipeline.process_pending()  # first batch of 20
+    await pipeline.process_pending()  # must continue, not repeat
+    assert len(calls) == 25
+    assert len(set(calls)) == 25  # nothing classified twice

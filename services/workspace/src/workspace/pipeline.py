@@ -33,6 +33,9 @@ class Pipeline:
         self.session_factory = session_factory
         self.js = js
         self.own_addr = own_addr
+        # Dry-run keeps rows 'pending' (so lifting it reprocesses for real);
+        # this set stops each cycle from re-classifying the same batch.
+        self._dry_run_seen: set[str] = set()
 
     async def enqueue(self, message_ids: list[str]) -> None:
         """Insert-or-ignore email rows; the worker picks up status=pending."""
@@ -47,15 +50,15 @@ class Pipeline:
 
     async def process_pending(self) -> int:
         async with self.session_factory() as session:
-            rows = (
-                (
-                    await session.execute(
-                        select(Email).where(Email.status.in_(["pending", "classified"])).limit(20)
-                    )
-                )
-                .scalars()
-                .all()
+            query = (
+                select(Email)
+                .where(Email.status.in_(["pending", "classified"]))
+                .order_by(Email.id)
+                .limit(20)
             )
+            if self._dry_run_seen:
+                query = query.where(Email.id.notin_(self._dry_run_seen))
+            rows = (await session.execute(query)).scalars().all()
         for email_row in rows:
             try:
                 await self._process_one(email_row.id)
@@ -89,6 +92,7 @@ class Pipeline:
                 " [DRY_RUN]" if cfg.dry_run else "",
             )
             if cfg.dry_run:
+                self._dry_run_seen.add(email_pk)
                 return
 
             await asyncio.to_thread(
