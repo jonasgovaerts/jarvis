@@ -62,7 +62,7 @@ images: ## local multi-arch dry-run build of all images (no push)
 # --- secrets (wired up in the GitOps step) --------------------------------
 
 google-auth: ## one-time Gmail OAuth bootstrap, then seal the token
-	uv run python tools/google_auth_bootstrap.py
+	uv run --with google-auth-oauthlib python tools/google_auth_bootstrap.py
 
 seal: ## pipe a secret through kubeseal: make seal SECRET=name NS=jarvis-system FILE=secret.yaml
 	kubeseal --format yaml < $(FILE)
