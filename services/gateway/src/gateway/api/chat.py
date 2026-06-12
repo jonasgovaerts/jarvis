@@ -24,6 +24,10 @@ class SessionCreate(BaseModel):
     title: str = "New conversation"
 
 
+class SessionUpdate(BaseModel):
+    title: str
+
+
 class MessageCreate(BaseModel):
     content: str
 
@@ -57,6 +61,18 @@ async def create_session(
 ) -> ChatSessionDTO:
     chat_session = ChatSession(title=body.title)
     session.add(chat_session)
+    await session.commit()
+    return _session_dto(chat_session)
+
+
+@router.patch("/sessions/{session_id}")
+async def patch_session(
+    session_id: str, body: SessionUpdate, session: AsyncSession = Depends(db_session)
+) -> ChatSessionDTO:
+    chat_session = await session.get(ChatSession, session_id)
+    if chat_session is None:
+        raise HTTPException(status_code=404, detail="session not found")
+    chat_session.title = body.title
     await session.commit()
     return _session_dto(chat_session)
 

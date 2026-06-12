@@ -1,8 +1,8 @@
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { Link } from "react-router";
 import { MessageSquarePlus, Radar, Send } from "lucide-react";
-import type { ChatMessage } from "@jarvis/events";
-import { useChatMessages, useChatSessions, useCreateSession, useSendMessage } from "../lib/queries";
+import type { ChatMessage, ChatSession } from "@jarvis/events";
+import { useChatMessages, useChatSessions, useCreateSession, useSendMessage, useUpdateSessionTitle } from "../lib/queries";
 import { EmptyState } from "../components/EmptyState";
 import { formatAge } from "../lib/time";
 
@@ -34,6 +34,81 @@ function MessageBubble({ message }: { message: ChatMessage }) {
         </p>
       </div>
     </div>
+  );
+}
+
+function SessionItem({
+  session,
+  isActive,
+  onClick,
+}: {
+  session: ChatSession;
+  isActive: boolean;
+  onClick: () => void;
+}) {
+  const [isEditing, setIsEditing] = useState(false);
+  const [title, setTitle] = useState(session.title);
+  const updateTitle = useUpdateSessionTitle();
+
+  const handleSave = () => {
+    if (title.trim() && title !== session.title) {
+      updateTitle.mutate({ sessionId: session.id, title: title.trim() });
+    }
+    setIsEditing(false);
+  };
+
+  const handleKeyDown = (event: React.KeyboardEvent) => {
+    if (event.key === "Enter") {
+      handleSave();
+    } else if (event.key === "Escape") {
+      setIsEditing(false);
+      setTitle(session.title);
+    }
+  };
+
+  if (isEditing) {
+    return (
+      <div
+        className={`block w-full rounded-md px-3 py-2 text-left text-sm transition ${
+          isActive
+            ? "bg-cyan-500/10 text-accent"
+            : "text-slate-400 bg-cyan-500/5"
+        }`}
+      >
+        <input
+          type="text"
+          value={title}
+          onChange={(e) => setTitle(e.target.value)}
+          onBlur={handleSave}
+          onKeyDown={handleKeyDown}
+          className="w-full border-0 bg-transparent p-0 text-sm text-slate-200 focus:outline-none"
+          autoFocus
+        />
+        <span className="font-mono text-[9px] text-slate-600">
+          {formatAge(session.createdAt)} ago
+        </span>
+      </div>
+    );
+  }
+
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      onDoubleClick={() => {
+        setIsEditing(true);
+      }}
+      className={`block w-full rounded-md px-3 py-2 text-left text-sm transition ${
+        isActive
+          ? "bg-cyan-500/10 text-accent"
+          : "text-slate-400 hover:bg-cyan-500/5 hover:text-slate-200"
+      }`}
+    >
+      <span className="block truncate">{session.title || "Untitled session"}</span>
+      <span className="font-mono text-[9px] text-slate-600">
+        {formatAge(session.createdAt)} ago
+      </span>
+    </button>
   );
 }
 
@@ -92,21 +167,12 @@ export function ChatPage() {
             <p className="px-2 py-2 text-xs text-slate-600">No sessions yet.</p>
           ) : (
             (sessions ?? []).map((session) => (
-              <button
+              <SessionItem
                 key={session.id}
-                type="button"
+                session={session}
+                isActive={session.id === activeId}
                 onClick={() => setSelectedId(session.id)}
-                className={`block w-full rounded-md px-3 py-2 text-left text-sm transition ${
-                  session.id === activeId
-                    ? "bg-cyan-500/10 text-accent"
-                    : "text-slate-400 hover:bg-cyan-500/5 hover:text-slate-200"
-                }`}
-              >
-                <span className="block truncate">{session.title || "Untitled session"}</span>
-                <span className="font-mono text-[9px] text-slate-600">
-                  {formatAge(session.createdAt)} ago
-                </span>
-              </button>
+              />
             ))
           )}
         </div>
