@@ -34,6 +34,11 @@ spec:
             # Flip to "false" after watching DRY_RUN decisions in the logs.
             - name: DRY_RUN
               value: "true"
+            # One-time inbox catch-up (idempotent; safe to leave on).
+            - name: BACKFILL_ON_START
+              value: "true"
+            - name: BACKFILL_MAX_MESSAGES
+              value: "200"
             - name: CLASSIFY_MODEL
               value: gemini
             - name: DRAFT_MODEL

@@ -13,6 +13,12 @@ class WorkspaceSettings(JarvisSettings):
 
     poll_interval_seconds: int = 45
 
+    # One-time catch-up: enqueue the most recent inbox messages at startup.
+    # Idempotent (already-processed mail is skipped), so leaving it on only
+    # costs one messages.list per pod start.
+    backfill_on_start: bool = False
+    backfill_max_messages: int = 200
+
     # Log every decision but never mutate Gmail or publish events.
     dry_run: bool = True
 

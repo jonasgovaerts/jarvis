@@ -54,6 +54,7 @@ class Poller:
     async def run(self) -> None:
         cfg = settings()
         checkpoint = await self.bootstrap()
+        await self.maybe_backfill()
         while True:
             try:
                 checkpoint = await self._cycle(checkpoint)
@@ -63,6 +64,19 @@ class Poller:
             except Exception:
                 log.exception("poll cycle failed")
             await asyncio.sleep(cfg.poll_interval_seconds + random.uniform(0, 5))
+
+    async def maybe_backfill(self) -> int:
+        """Enqueue the current inbox once when BACKFILL_ON_START is set.
+        The unique constraint on gmail_message_id makes this idempotent."""
+        cfg = settings()
+        if not cfg.backfill_on_start:
+            return 0
+        ids = await asyncio.to_thread(self.gmail.list_inbox_ids, cfg.backfill_max_messages)
+        await self.pipeline.enqueue(ids)
+        log.info(
+            "backfill: enqueued %d inbox message(s) (max %d)", len(ids), cfg.backfill_max_messages
+        )
+        return len(ids)
 
     async def _cycle(self, checkpoint: str) -> str:
         try:

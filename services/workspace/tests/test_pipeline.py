@@ -146,3 +146,34 @@ async def test_dry_run_never_mutates(session_factory, monkeypatch):
     async with session_factory() as session:
         email_row = (await session.execute(select(Email))).scalar_one()
     assert email_row.status == "pending"  # untouched, reprocessed when dry_run lifts
+
+
+async def test_backfill_respects_flag(session_factory, monkeypatch):
+    from sqlalchemy import select as sa_select
+
+    from workspace import config
+    from workspace.poller import Poller
+
+    class BackfillGmail(FakeGmail):
+        def list_inbox_ids(self, max_results=200):
+            return ["old-1", "old-2", "old-3"][:max_results]
+
+    gmail = BackfillGmail()
+    pipeline = Pipeline(gmail, session_factory)
+    poller = Poller(gmail, pipeline, session_factory)
+
+    # Flag off (default): nothing enqueued.
+    assert await poller.maybe_backfill() == 0
+
+    monkeypatch.setenv("BACKFILL_ON_START", "true")
+    monkeypatch.setenv("BACKFILL_MAX_MESSAGES", "2")
+    config.settings.cache_clear()
+    try:
+        assert await poller.maybe_backfill() == 2
+        # Idempotent: a second run re-enqueues nothing new.
+        assert await poller.maybe_backfill() == 2
+        async with session_factory() as session:
+            rows = (await session.execute(sa_select(Email))).scalars().all()
+        assert sorted(r.gmail_message_id for r in rows) == ["old-1", "old-2"]
+    finally:
+        config.settings.cache_clear()
