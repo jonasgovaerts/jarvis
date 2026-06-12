@@ -56,7 +56,7 @@ function TasksTab() {
           {(tasks ?? []).map((task) => (
             <li
               key={task.id}
-              className="flex items-start justify-between gap-4 rounded-lg border border-cyan-500/15 bg-panel p-4"
+              className="flex flex-col items-start justify-between gap-4 rounded-lg border border-cyan-500/15 bg-panel p-4 sm:flex-row sm:items-center"
             >
               <div className="min-w-0">
                 <div className="flex flex-wrap items-center gap-2">
@@ -82,7 +82,7 @@ function TasksTab() {
                 onClick={() =>
                   update.mutate({ id: task.id, status: filter === "open" ? "done" : "open" })
                 }
-                className="inline-flex shrink-0 items-center gap-1.5 rounded-md border border-cyan-500/30 px-3 py-1.5 text-xs font-semibold text-slate-200 transition hover:border-accent/60 hover:text-accent disabled:opacity-50"
+                className="mt-3 inline-flex w-full shrink-0 items-center justify-center gap-1.5 rounded-md border border-cyan-500/30 px-3 py-1.5 text-xs font-semibold text-slate-200 transition hover:border-accent/60 hover:text-accent disabled:opacity-50 sm:mt-0 sm:w-auto"
               >
                 {filter === "open" ? (
                   <>
@@ -117,7 +117,7 @@ function DraftsTab() {
           {(drafts ?? []).map((draft) => (
             <li
               key={draft.taskId}
-              className="flex items-start justify-between gap-4 rounded-lg border border-cyan-500/15 bg-panel p-4"
+              className="flex flex-col items-start justify-between gap-4 rounded-lg border border-cyan-500/15 bg-panel p-4 sm:flex-row sm:items-center"
             >
               <div className="min-w-0">
                 <div className="flex flex-wrap items-center gap-2">
@@ -131,7 +131,7 @@ function DraftsTab() {
                   {formatAge(draft.createdAt)} ago
                 </p>
               </div>
-              <div className="flex shrink-0 gap-2">
+              <div className="mt-3 flex w-full shrink-0 flex-col gap-2 sm:mt-0 sm:w-auto sm:flex-row">
                 <button
                   type="button"
                   disabled={action.isPending}
