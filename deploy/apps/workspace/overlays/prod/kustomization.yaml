@@ -6,4 +6,4 @@ resources:
 images:
 - name: ghcr.io/jonasgovaerts/jarvis/workspace
   newName: ghcr.io/jonasgovaerts/jarvis/workspace
-  newTag: sha-5901e84
+  newTag: sha-588582c
