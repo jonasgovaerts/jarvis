@@ -1,9 +1,21 @@
 import { describe, expect, it } from "vitest";
 import { render, screen } from "@testing-library/react";
 import { MemoryRouter } from "react-router";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import type { BoardItem } from "@jarvis/events";
 import { BoardColumn } from "../pages/board/BoardColumn";
 import { DONE_WINDOW_MS, groupItems } from "../pages/board/columns";
+
+// WorkflowCard uses React Query (useDeleteWorkflow), so rendering a column
+// needs a client in scope.
+function renderColumn(ui: React.ReactNode) {
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  return render(
+    <QueryClientProvider client={client}>
+      <MemoryRouter>{ui}</MemoryRouter>
+    </QueryClientProvider>,
+  );
+}
 
 function makeItem(overrides: Partial<BoardItem> = {}): BoardItem {
   return {
@@ -28,11 +40,7 @@ describe("BoardColumn", () => {
       makeItem(),
       makeItem({ name: "wi-2", title: "Add dark mode", sourceType: "FeatureRequest" }),
     ];
-    render(
-      <MemoryRouter>
-        <BoardColumn title="Analyzing" items={items} />
-      </MemoryRouter>,
-    );
+    renderColumn(<BoardColumn title="Analyzing" items={items} />);
 
     expect(screen.getByText("Analyzing")).toBeTruthy();
     expect(screen.getByText("2")).toBeTruthy();
@@ -42,11 +50,7 @@ describe("BoardColumn", () => {
   });
 
   it("renders a HUD empty placeholder when there are no items", () => {
-    render(
-      <MemoryRouter>
-        <BoardColumn title="Rollout" items={[]} />
-      </MemoryRouter>,
-    );
+    renderColumn(<BoardColumn title="Rollout" items={[]} />);
 
     expect(screen.getByText("Rollout")).toBeTruthy();
     expect(screen.getByText("0")).toBeTruthy();

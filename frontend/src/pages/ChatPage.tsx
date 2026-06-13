@@ -1,8 +1,15 @@
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { Link } from "react-router";
-import { Menu, MessageSquarePlus, Radar, Send, X } from "lucide-react";
+import { Menu, MessageSquarePlus, Radar, Send, Trash2, X } from "lucide-react";
 import type { ChatMessage, ChatSession } from "@jarvis/events";
-import { useChatMessages, useChatSessions, useCreateSession, useSendMessage, useUpdateSessionTitle } from "../lib/queries";
+import {
+  useChatMessages,
+  useChatSessions,
+  useCreateSession,
+  useDeleteSession,
+  useSendMessage,
+  useUpdateSessionTitle,
+} from "../lib/queries";
 import { EmptyState } from "../components/EmptyState";
 import { formatAge } from "../lib/time";
 
@@ -49,6 +56,7 @@ function SessionItem({
   const [isEditing, setIsEditing] = useState(false);
   const [title, setTitle] = useState(session.title);
   const updateTitle = useUpdateSessionTitle();
+  const deleteSession = useDeleteSession();
 
   const handleSave = () => {
     if (title.trim() && title !== session.title) {
@@ -70,9 +78,7 @@ function SessionItem({
     return (
       <div
         className={`block w-full rounded-md px-3 py-2 text-left text-sm transition ${
-          isActive
-            ? "bg-cyan-500/10 text-accent"
-            : "text-slate-400 bg-cyan-500/5"
+          isActive ? "bg-cyan-500/10 text-accent" : "text-slate-400 bg-cyan-500/5"
         }`}
       >
         <input
@@ -92,23 +98,36 @@ function SessionItem({
   }
 
   return (
-    <button
-      type="button"
-      onClick={onClick}
-      onDoubleClick={() => {
-        setIsEditing(true);
-      }}
-      className={`block w-full rounded-md px-3 py-2 text-left text-sm transition ${
-        isActive
-          ? "bg-cyan-500/10 text-accent"
-          : "text-slate-400 hover:bg-cyan-500/5 hover:text-slate-200"
-      }`}
-    >
-      <span className="block truncate">{session.title || "Untitled session"}</span>
-      <span className="font-mono text-[9px] text-slate-600">
-        {formatAge(session.createdAt)} ago
-      </span>
-    </button>
+    <div className="group relative">
+      <button
+        type="button"
+        onClick={onClick}
+        onDoubleClick={() => {
+          setIsEditing(true);
+        }}
+        className={`block w-full rounded-md px-3 py-2 text-left text-sm transition ${
+          isActive
+            ? "bg-cyan-500/10 text-accent"
+            : "text-slate-400 hover:bg-cyan-500/5 hover:text-slate-200"
+        }`}
+      >
+        <span className="block truncate">{session.title || "Untitled session"}</span>
+        <span className="font-mono text-[9px] text-slate-600">
+          {formatAge(session.createdAt)} ago
+        </span>
+      </button>
+      <button
+        type="button"
+        onClick={(e) => {
+          e.stopPropagation();
+          deleteSession.mutate(session.id);
+        }}
+        className="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-slate-500 opacity-0 transition hover:text-red-400 group-hover:opacity-100"
+        title="Delete session"
+      >
+        <Trash2 className="h-3.5 w-3.5" />
+      </button>
+    </div>
   );
 }
 

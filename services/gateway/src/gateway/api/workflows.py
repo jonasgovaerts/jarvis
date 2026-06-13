@@ -4,7 +4,7 @@ from typing import Literal
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
-from sqlalchemy import select
+from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from gateway.api.deps import db_session, require_token
@@ -67,3 +67,14 @@ async def request_action(name: str, body: ActionRequest) -> dict:
         return {"status": "accepted", "action": body.action, "note": "fixture mode"}
     await ops.request_action(settings().workitem_namespace, name, body.action)
     return {"status": "accepted", "action": body.action}
+
+
+@router.delete("/{name}", status_code=204)
+async def delete_workflow(name: str, session: AsyncSession = Depends(db_session)):
+    if state.cache.get_raw(name) is None and not settings().fake_k8s:
+        raise HTTPException(status_code=404, detail=f"workflow {name} not found")
+    if not settings().fake_k8s:
+        await ops.delete_workitem(settings().workitem_namespace, name)
+
+    await session.execute(delete(WorkflowEvent).where(WorkflowEvent.workflow_name == name))
+    await session.commit()

@@ -84,6 +84,17 @@ export function useWorkflowAction(name: string) {
   });
 }
 
+export function useDeleteWorkflow() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (name: string) =>
+      api<unknown>(`/api/workflows/${encodeURIComponent(name)}`, { method: "DELETE" }),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ["workflows"] });
+    },
+  });
+}
+
 // ---------------------------------------------------------------------------
 // Tasks & drafts
 // ---------------------------------------------------------------------------
@@ -210,6 +221,17 @@ export function useUpdateSessionTitle() {
         method: "PATCH",
         body: { title },
       }),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ["chat", "sessions"] });
+    },
+  });
+}
+
+export function useDeleteSession() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (sessionId: string) =>
+      api<unknown>(`/api/chat/sessions/${encodeURIComponent(sessionId)}`, { method: "DELETE" }),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ["chat", "sessions"] });
     },

@@ -10,9 +10,5 @@ export function Clock() {
     return () => clearInterval(interval);
   }, []);
 
-  return (
-    <div className="font-mono text-sm text-slate-500">
-      {time.toLocaleTimeString()}
-    </div>
-  );
+  return <div className="font-mono text-sm text-slate-500">{time.toLocaleTimeString()}</div>;
 }
