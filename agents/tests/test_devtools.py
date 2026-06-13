@@ -100,3 +100,28 @@ def test_fresh_branch_without_remote_pushes_normally():
 def test_fix_loop_never_force_pushes():
     push = _branch_setup_calls(previous={"branch": "jarvis/fr-x"}, remote_branch_exists=True)
     assert push == ["push", "-u", "origin", "jarvis/fr-x"]
+
+
+def test_lockfiles_cannot_be_hand_edited(tmp_path):
+    from jarvis_agents.devtools import RepoEditor
+
+    (tmp_path / "package-lock.json").write_text('{"x":1}')
+    (tmp_path / "uv.lock").write_text("[[package]]")
+    editor = RepoEditor(tmp_path)
+
+    msg = editor.write_file("package-lock.json", "{}")
+    assert "generated lockfile" in msg
+    assert "npm install" in msg
+    assert (tmp_path / "package-lock.json").read_text() == '{"x":1}'  # untouched
+
+    msg = editor.edit_file("uv.lock", "[[package]]", "[[other]]")
+    assert "generated lockfile" in msg
+    assert "uv lock" in msg
+
+    # A nested lockfile is caught by basename too.
+    (tmp_path / "frontend").mkdir()
+    (tmp_path / "frontend" / "package-lock.json").write_text("{}")
+    assert "generated lockfile" in editor.write_file("frontend/package-lock.json", "{}")
+
+    # Normal source files still write fine.
+    assert "wrote" in editor.write_file("frontend/src/App.tsx", "export const x = 1;")
