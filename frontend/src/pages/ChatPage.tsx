@@ -2,7 +2,14 @@ import { useEffect, useRef, useState, type FormEvent } from "react";
 import { Link } from "react-router";
 import { Menu, MessageSquarePlus, Radar, Send, Trash2, X } from "lucide-react";
 import type { ChatMessage, ChatSession } from "@jarvis/events";
-import { useChatMessages, useChatSessions, useCreateSession, useDeleteSession, useSendMessage, useUpdateSessionTitle } from "../lib/queries";
+import {
+  useChatMessages,
+  useChatSessions,
+  useCreateSession,
+  useDeleteSession,
+  useSendMessage,
+  useUpdateSessionTitle,
+} from "../lib/queries";
 import { EmptyState } from "../components/EmptyState";
 import { formatAge } from "../lib/time";
 
@@ -71,9 +78,7 @@ function SessionItem({
     return (
       <div
         className={`block w-full rounded-md px-3 py-2 text-left text-sm transition ${
-          isActive
-            ? "bg-cyan-500/10 text-accent"
-            : "text-slate-400 bg-cyan-500/5"
+          isActive ? "bg-cyan-500/10 text-accent" : "text-slate-400 bg-cyan-500/5"
         }`}
       >
         <input
