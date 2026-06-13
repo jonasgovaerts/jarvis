@@ -25,6 +25,7 @@
       "enum": [
         "Pending",
         "Analyzing",
+        "AwaitingDevApproval",
         "Developing",
         "AwaitingCI",
         "AwaitingMerge",

@@ -23,19 +23,20 @@ import (
 
 // WorkItemPhase is the pipeline state machine position. Terminal phases are
 // Succeeded, Failed and Skipped.
-// +kubebuilder:validation:Enum=Pending;Analyzing;Developing;AwaitingCI;AwaitingMerge;RolloutCheck;Succeeded;Failed;Skipped
+// +kubebuilder:validation:Enum=Pending;Analyzing;AwaitingDevApproval;Developing;AwaitingCI;AwaitingMerge;RolloutCheck;Succeeded;Failed;Skipped
 type WorkItemPhase string
 
 const (
-	PhasePending       WorkItemPhase = "Pending"
-	PhaseAnalyzing     WorkItemPhase = "Analyzing"
-	PhaseDeveloping    WorkItemPhase = "Developing"
-	PhaseAwaitingCI    WorkItemPhase = "AwaitingCI"
-	PhaseAwaitingMerge WorkItemPhase = "AwaitingMerge"
-	PhaseRolloutCheck  WorkItemPhase = "RolloutCheck"
-	PhaseSucceeded     WorkItemPhase = "Succeeded"
-	PhaseFailed        WorkItemPhase = "Failed"
-	PhaseSkipped       WorkItemPhase = "Skipped"
+	PhasePending             WorkItemPhase = "Pending"
+	PhaseAnalyzing           WorkItemPhase = "Analyzing"
+	PhaseAwaitingDevApproval WorkItemPhase = "AwaitingDevApproval"
+	PhaseDeveloping          WorkItemPhase = "Developing"
+	PhaseAwaitingCI          WorkItemPhase = "AwaitingCI"
+	PhaseAwaitingMerge       WorkItemPhase = "AwaitingMerge"
+	PhaseRolloutCheck        WorkItemPhase = "RolloutCheck"
+	PhaseSucceeded           WorkItemPhase = "Succeeded"
+	PhaseFailed              WorkItemPhase = "Failed"
+	PhaseSkipped             WorkItemPhase = "Skipped"
 )
 
 // IsTerminal reports whether the phase ends the pipeline.

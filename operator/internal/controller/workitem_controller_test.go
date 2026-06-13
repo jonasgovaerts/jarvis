@@ -24,6 +24,7 @@ import (
 	. "github.com/onsi/gomega"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/tools/events"
@@ -165,6 +166,21 @@ var _ = Describe("WorkItem controller", func() {
 		}
 	}
 
+	// approveDev clears the pre-development human gate: a CodeChange verdict
+	// parks in AwaitingDevApproval until the dashboard "approve" action.
+	approveDev := func(wi *jarvisv1alpha1.WorkItem) {
+		reconcileUntil(wi, jarvisv1alpha1.PhaseAwaitingDevApproval)
+		ExpectWithOffset(1, k8sClient.Get(ctx,
+			types.NamespacedName{Name: wi.Name, Namespace: ns}, wi)).To(Succeed())
+		patched := wi.DeepCopy()
+		if patched.Annotations == nil {
+			patched.Annotations = map[string]string{}
+		}
+		patched.Annotations[jarvisv1alpha1.AnnotationAction] = "approve"
+		ExpectWithOffset(1, k8sClient.Patch(ctx, patched, client.MergeFrom(wi))).To(Succeed())
+		reconcile(wi)
+	}
+
 	It("walks the happy path to Succeeded (no gitops mapping)", func() {
 		repo := newRepo(fmt.Sprintf("repo-happy-%d", counter), nil)
 		wi := newWorkItem(fmt.Sprintf("wi-happy-%d", counter), repo.Name)
@@ -176,6 +192,7 @@ var _ = Describe("WorkItem controller", func() {
 		Expect(wi.Status.ActiveJob).NotTo(BeNil())
 		completeJob(wi, jarvisv1alpha1.StageAnalyzer, successEnvelope(jarvisv1alpha1.StageAnalyzer,
 			map[string]any{"verdict": "CodeChange", "summary": "null deref", "confidence": "high"}))
+		approveDev(wi)
 		reconcileUntil(wi, jarvisv1alpha1.PhaseDeveloping)
 		Expect(wi.Status.Analysis.Verdict).To(Equal("CodeChange"))
 
@@ -194,6 +211,49 @@ var _ = Describe("WorkItem controller", func() {
 		reconcileUntil(wi, jarvisv1alpha1.PhaseSucceeded)
 		Expect(wi.Status.Rollout.Decision).To(Equal("NotRequired"))
 		Expect(wi.Status.CompletedAt).NotTo(BeNil())
+	})
+
+	It("parks a CodeChange in AwaitingDevApproval until approved", func() {
+		repo := newRepo(fmt.Sprintf("repo-gate-%d", counter), nil)
+		wi := newWorkItem(fmt.Sprintf("wi-gate-%d", counter), repo.Name)
+
+		reconcileUntil(wi, jarvisv1alpha1.PhaseAnalyzing)
+		reconcile(wi)
+		completeJob(wi, jarvisv1alpha1.StageAnalyzer, successEnvelope(jarvisv1alpha1.StageAnalyzer,
+			map[string]any{"verdict": "CodeChange", "summary": "needs a fix"}))
+		reconcileUntil(wi, jarvisv1alpha1.PhaseAwaitingDevApproval)
+
+		// Without approval it must NOT advance to Developing, no matter how
+		// many times we reconcile — and no developer Job is spawned.
+		for range 5 {
+			reconcile(wi)
+		}
+		Expect(wi.Status.Phase).To(Equal(jarvisv1alpha1.PhaseAwaitingDevApproval))
+		devJob := &batchv1.Job{}
+		Expect(apierrors.IsNotFound(k8sClient.Get(ctx, types.NamespacedName{
+			Name: jobs.JobName(wi, jarvisv1alpha1.StageDeveloper, 0), Namespace: ns,
+		}, devJob))).To(BeTrue())
+
+		approveDev(wi)
+		reconcileUntil(wi, jarvisv1alpha1.PhaseDeveloping)
+	})
+
+	It("cancels from the approval gate to Skipped", func() {
+		repo := newRepo(fmt.Sprintf("repo-gatecancel-%d", counter), nil)
+		wi := newWorkItem(fmt.Sprintf("wi-gatecancel-%d", counter), repo.Name)
+
+		reconcileUntil(wi, jarvisv1alpha1.PhaseAnalyzing)
+		reconcile(wi)
+		completeJob(wi, jarvisv1alpha1.StageAnalyzer, successEnvelope(jarvisv1alpha1.StageAnalyzer,
+			map[string]any{"verdict": "CodeChange", "summary": "needs a fix"}))
+		reconcileUntil(wi, jarvisv1alpha1.PhaseAwaitingDevApproval)
+
+		Expect(k8sClient.Get(ctx, types.NamespacedName{Name: wi.Name, Namespace: ns}, wi)).To(Succeed())
+		patched := wi.DeepCopy()
+		patched.Annotations = map[string]string{jarvisv1alpha1.AnnotationAction: "cancel"}
+		Expect(k8sClient.Patch(ctx, patched, client.MergeFrom(wi))).To(Succeed())
+		reconcile(wi)
+		Expect(wi.Status.Phase).To(Equal(jarvisv1alpha1.PhaseSkipped))
 	})
 
 	It("skips NotActionable issues", func() {
@@ -260,6 +320,7 @@ var _ = Describe("WorkItem controller", func() {
 		reconcile(wi)
 		completeJob(wi, jarvisv1alpha1.StageAnalyzer, successEnvelope(jarvisv1alpha1.StageAnalyzer,
 			map[string]any{"verdict": "CodeChange", "summary": "bug"}))
+		approveDev(wi)
 		reconcileUntil(wi, jarvisv1alpha1.PhaseDeveloping)
 
 		for fix := 1; fix <= 2; fix++ {
@@ -297,6 +358,7 @@ var _ = Describe("WorkItem controller", func() {
 		reconcile(wi)
 		completeJob(wi, jarvisv1alpha1.StageAnalyzer, successEnvelope(jarvisv1alpha1.StageAnalyzer,
 			map[string]any{"verdict": "CodeChange", "summary": "bug"}))
+		approveDev(wi)
 		reconcileUntil(wi, jarvisv1alpha1.PhaseDeveloping)
 		reconcile(wi)
 		completeJob(wi, jarvisv1alpha1.StageDeveloper, successEnvelope(jarvisv1alpha1.StageDeveloper,

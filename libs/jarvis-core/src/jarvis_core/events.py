@@ -30,6 +30,7 @@ STREAM_SUBJECTS = "jarvis.>"
 class WorkItemPhase(StrEnum):
     PENDING = "Pending"
     ANALYZING = "Analyzing"
+    AWAITING_DEV_APPROVAL = "AwaitingDevApproval"
     DEVELOPING = "Developing"
     AWAITING_CI = "AwaitingCI"
     AWAITING_MERGE = "AwaitingMerge"

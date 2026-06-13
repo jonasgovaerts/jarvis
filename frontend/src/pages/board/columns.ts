@@ -3,6 +3,7 @@ import type { BoardItem } from "@jarvis/events";
 export const COLUMNS = [
   "Queued",
   "Analyzing",
+  "Awaiting Approval",
   "Developing",
   "CI",
   "Awaiting Merge",
@@ -15,6 +16,7 @@ export type ColumnId = (typeof COLUMNS)[number];
 const PHASE_TO_COLUMN: Record<BoardItem["phase"], ColumnId | null> = {
   Pending: "Queued",
   Analyzing: "Analyzing",
+  AwaitingDevApproval: "Awaiting Approval",
   Developing: "Developing",
   AwaitingCI: "CI",
   AwaitingMerge: "Awaiting Merge",

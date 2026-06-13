@@ -18,6 +18,31 @@ def render(envelope: dict, dashboard_url: str) -> Notification | None:
     common = {"event_id": event_id, "event_type": subject}
 
     match subject:
+        case "jarvis.workflow.analysis.completed":
+            verdict = data.get("verdict", "")
+            summary = data.get("summary", "")[:600]
+            if verdict == "CodeChange":
+                return Notification(
+                    title=f"Analysis ready — approval needed — {repo}",
+                    body=(
+                        f"`{name}` will be developed by Jarvis if you approve.\n\n"
+                        f"**Plan:** {summary}\n\n"
+                        "Review on the board and **Approve** to start development, or **Cancel**."
+                    ),
+                    url=board_link,
+                    severity=Severity.ACTION,
+                    fields={"Repository": repo, "Verdict": verdict, "Board": board_link},
+                    **common,
+                )
+            # Misconfiguration / NotActionable: informational, no dev gate.
+            return Notification(
+                title=f"Analysis: {verdict or 'done'} — {repo}",
+                body=f"`{name}`: {summary}",
+                url=board_link,
+                severity=Severity.INFO,
+                fields={"Repository": repo, "Verdict": verdict},
+                **common,
+            )
         case "jarvis.workflow.pr.ready":
             return Notification(
                 title=f"PR ready to merge — {repo}",

@@ -5,10 +5,12 @@ metadata:
   namespace: jarvis-system
 data:
   routing.yaml: |
-    # Discord notifications: a new feature's PR appearing, the PR becoming
-    # mergeable (CI green — needs your approval), and failures. Everything
-    # else stays board-only (explicit empty rules document the choice).
+    # Discord notifications: analysis complete (needs your approval before
+    # development), a PR appearing, the PR becoming mergeable (CI green), and
+    # failures. Everything else stays board-only (explicit empty rules).
     rules:
+      - match: "jarvis.workflow.analysis.completed"
+        channels: [discord]
       - match: "jarvis.workflow.pr.opened"
         channels: [discord]
       - match: "jarvis.workflow.pr.ready"

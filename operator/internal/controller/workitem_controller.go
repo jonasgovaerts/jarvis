@@ -164,6 +164,11 @@ func (r *WorkItemReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 	case jarvisv1alpha1.PhaseAnalyzing:
 		return r.reconcileStage(ctx, orig, wi, repo, jarvisv1alpha1.StageAnalyzer, suspended, r.onAnalyzed)
 
+	case jarvisv1alpha1.PhaseAwaitingDevApproval:
+		// Idle until the engineer approves (→ Developing) or cancels (→ Skipped)
+		// via the dashboard action annotation, which triggers a reconcile.
+		return ctrl.Result{}, nil
+
 	case jarvisv1alpha1.PhaseDeveloping:
 		return r.reconcileStage(ctx, orig, wi, repo, jarvisv1alpha1.StageDeveloper, suspended, r.onDeveloped)
 
@@ -368,7 +373,9 @@ func (r *WorkItemReconciler) onAnalyzed(wi *jarvisv1alpha1.WorkItem, env *jobs.E
 
 	switch res.Verdict {
 	case "CodeChange":
-		return jarvisv1alpha1.PhaseDeveloping, "analysis: code change required", nil
+		// Human gate: the engineer reviews the analysis and approves before
+		// the developer agent writes any code (notified via analysis.completed).
+		return jarvisv1alpha1.PhaseAwaitingDevApproval, "analysis complete — awaiting approval to develop", nil
 	case "Misconfiguration":
 		return jarvisv1alpha1.PhaseRolloutCheck, "analysis: misconfiguration — skipping development", nil
 	case "NotActionable":
@@ -713,6 +720,11 @@ func (r *WorkItemReconciler) handleRequestedAction(ctx context.Context, orig, wi
 		return ctrl.Result{Requeue: true}, nil
 
 	case "approve":
+		// Pre-development gate: approve releases analysis → development.
+		if wi.Status.Phase == jarvisv1alpha1.PhaseAwaitingDevApproval {
+			r.Recorder.Eventf(wi, nil, corev1.EventTypeNormal, "Approved", "Reconcile", "development approved from the dashboard")
+			return r.transition(ctx, orig, wi, jarvisv1alpha1.PhaseDeveloping, "development approved from the dashboard")
+		}
 		if wi.Status.Phase != jarvisv1alpha1.PhaseAwaitingMerge || wi.Status.Development == nil || repo == nil {
 			log.Info("approve ignored", "phase", wi.Status.Phase)
 			return ctrl.Result{}, nil
