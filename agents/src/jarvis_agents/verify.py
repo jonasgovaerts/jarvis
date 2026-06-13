@@ -26,54 +26,105 @@ class CheckFailure:
     output: str
 
 
-def detect_checks(root: Path) -> list[list[str]]:
-    """Lint/test argvs for toolchains that exist both in the repo and image.
+# Directories never worth descending into for project detection.
+_SKIP_DIRS = {
+    "node_modules",
+    ".venv",
+    "venv",
+    ".git",
+    "vendor",
+    "dist",
+    "build",
+    ".next",
+    "target",
+}
 
-    Deliberately language-level (ruff/pytest/npm/go) rather than Makefile
-    targets: a Makefile often fans out to toolchains this image doesn't
-    carry, which would turn the gate into a permanent red light.
-    """
-    checks: list[list[str]] = []
 
-    if (root / "pyproject.toml").exists():
-        runner = ["uv", "run"] if (root / "uv.lock").exists() and shutil.which("uv") else []
-        if runner or shutil.which("ruff"):
-            checks.append([*runner, "ruff", "check", "."])
-        has_tests = any(root.glob("**/test_*.py")) or any(root.glob("**/*_test.py"))
-        if has_tests and (runner or shutil.which("pytest")):
-            checks.append([*runner, "pytest", "-q", "-x"])
+def _python_checks(d: Path) -> list[list[str]]:
+    if not (d / "pyproject.toml").exists():
+        return []
+    runner = ["uv", "run"] if (d / "uv.lock").exists() and shutil.which("uv") else []
+    out: list[list[str]] = []
+    if runner or shutil.which("ruff"):
+        out.append([*runner, "ruff", "check", "."])
+    has_tests = any(d.glob("**/test_*.py")) or any(d.glob("**/*_test.py"))
+    if has_tests and (runner or shutil.which("pytest")):
+        out.append([*runner, "pytest", "-q", "-x"])
+    return out
 
-    package_json = root / "package.json"
-    if package_json.exists() and shutil.which("npm"):
-        try:
-            scripts = json.loads(package_json.read_text()).get("scripts", {})
-        except (OSError, ValueError):
-            scripts = {}
-        if scripts and not (root / "node_modules").exists():
-            checks.append(["npm", "ci", "--prefer-offline", "--no-audit"])
-        for name in ("lint", "typecheck", "test"):
-            if name in scripts:
-                args = ["npm", "run", name]
-                if name == "test":
-                    args += ["--", "--run"]  # vitest et al: no watch mode
-                checks.append(args)
 
-    if (root / "go.mod").exists() and shutil.which("go"):
-        checks.append(["go", "vet", "./..."])
-        checks.append(["go", "test", "./..."])
+def _node_checks(d: Path) -> list[list[str]]:
+    pj = d / "package.json"
+    if not pj.exists() or not shutil.which("npm"):
+        return []
+    try:
+        scripts = json.loads(pj.read_text()).get("scripts", {})
+    except (OSError, ValueError):
+        scripts = {}
+    out: list[list[str]] = []
+    if scripts and not (d / "node_modules").exists():
+        out.append(["npm", "ci", "--prefer-offline", "--no-audit"])
+    for name in ("lint", "typecheck", "test"):
+        if name in scripts:
+            args = ["npm", "run", name]
+            if name == "test":
+                args += ["--", "--run"]  # vitest et al: no watch mode
+            out.append(args)
+    return out
 
+
+def _go_checks(d: Path) -> list[list[str]]:
+    if not (d / "go.mod").exists() or not shutil.which("go"):
+        return []
+    # build + vet only. `go test ./...` for kubebuilder/k8s repos needs envtest
+    # assets (etcd, kube-apiserver) this image can't carry — running it would
+    # be a guaranteed false failure. build+vet catches compile and vet errors.
+    return [["go", "build", "./..."], ["go", "vet", "./..."]]
+
+
+def _candidate_dirs(root: Path):
+    """The repo root plus its immediate subdirectories — enough to cover the
+    common monorepo layout (frontend/, operator/, services/…) without walking
+    into dependency trees."""
+    yield root
+    try:
+        children = sorted(p for p in root.iterdir() if p.is_dir())
+    except OSError:
+        return
+    for child in children:
+        if child.name not in _SKIP_DIRS and not child.name.startswith("."):
+            yield child
+
+
+def detect_checks(root: Path) -> list[tuple[Path, list[str]]]:
+    """(workdir, argv) for each toolchain check found in the root and its
+    immediate subdirectories. Python runs once at the shallowest pyproject
+    (a uv workspace root covers its members)."""
+    checks: list[tuple[Path, list[str]]] = []
+    python_done = False
+    for d in _candidate_dirs(root):
+        py = _python_checks(d)
+        if py and not python_done:
+            checks.extend((d, c) for c in py)
+            python_done = True
+        checks.extend((d, c) for c in _node_checks(d))
+        checks.extend((d, c) for c in _go_checks(d))
     return checks
 
 
 def run_checks(root: Path) -> list[CheckFailure]:
-    """Run every detected check; returns the failures (empty == green)."""
+    """Run every detected check in its own directory; returns failures."""
     failures: list[CheckFailure] = []
-    for argv in detect_checks(root):
-        pretty = " ".join(argv)
+    broken: set[Path] = set()  # dirs whose npm ci failed → skip their scripts
+    for workdir, argv in detect_checks(root):
+        if workdir in broken:
+            continue
+        rel = workdir.relative_to(root)
+        pretty = " ".join(argv) if str(rel) == "." else f"{rel}: {' '.join(argv)}"
         log.info("verify: %s", pretty)
         try:
             result = subprocess.run(
-                argv, cwd=root, capture_output=True, text=True, timeout=CHECK_TIMEOUT
+                argv, cwd=workdir, capture_output=True, text=True, timeout=CHECK_TIMEOUT
             )
         except subprocess.TimeoutExpired:
             failures.append(CheckFailure(pretty, f"timed out after {CHECK_TIMEOUT}s"))
@@ -90,7 +141,7 @@ def run_checks(root: Path) -> list[CheckFailure]:
         log.info("verify: %s ✗ (exit %d)", pretty, result.returncode)
         failures.append(CheckFailure(pretty, output))
         if argv[:2] == ["npm", "ci"]:
-            break  # downstream npm scripts are meaningless without deps
+            broken.add(workdir)  # its scripts would just fail for missing deps
     return failures
 
 

@@ -19,17 +19,29 @@ RUN --mount=type=cache,target=/root/.cache/uv \
     uv sync --frozen --no-dev --no-editable --package jarvis-agents
 
 FROM python:3.13-slim-bookworm
-# The developer/sre agents clone repositories and run project tooling. The
-# verification gate runs the target repo's lint/tests, so the common
-# toolchains ship in the image: uv covers python repos (their own pinned
-# ruff/pytest via `uv run`), node/npm covers frontend checks.
+# The developer/sre agents clone repositories and run the verification gate
+# (the target repo's own lint/tests), so the toolchains ship in the image at
+# versions matching CI: uv (python), Node 22 (frontend — Vite 7 needs Node
+# 20+; Debian's apt node is 18 and too old), Go 1.25 (operator build/vet).
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    git ca-certificates nodejs npm \
+    git ca-certificates \
     && rm -rf /var/lib/apt/lists/*
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/local/bin/uv
+# Node 22 from the official multi-arch image (not Debian's stale apt build).
+COPY --from=node:22-bookworm-slim /usr/local/bin/node /usr/local/bin/node
+COPY --from=node:22-bookworm-slim /usr/local/lib/node_modules /usr/local/lib/node_modules
+RUN ln -s ../lib/node_modules/npm/bin/npm-cli.js /usr/local/bin/npm \
+    && ln -s ../lib/node_modules/npm/bin/npx-cli.js /usr/local/bin/npx
+# Go toolchain (matches operator/go.mod) for go build/vet in the gate.
+COPY --from=golang:1.25-bookworm /usr/local/go /usr/local/go
+ENV PATH="/usr/local/go/bin:$PATH" \
+    GOTOOLCHAIN=local \
+    GOFLAGS=-buildvcs=false
 RUN groupadd -r jarvis && useradd -r -m -g jarvis jarvis
 WORKDIR /work
 COPY --from=builder /app/.venv /app/.venv
-ENV PATH="/app/.venv/bin:$PATH"
+ENV PATH="/app/.venv/bin:/usr/local/go/bin:$PATH" \
+    GOCACHE=/home/jarvis/.cache/go-build \
+    GOPATH=/home/jarvis/go
 USER jarvis
 ENTRYPOINT ["jarvis-agent"]
