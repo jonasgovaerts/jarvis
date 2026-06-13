@@ -8,7 +8,6 @@ can be developed and demoed without a cluster.
 from __future__ import annotations
 
 import asyncio
-import contextlib
 import logging
 from datetime import UTC, datetime, timedelta
 
@@ -73,22 +72,25 @@ async def run_watcher(cache: BoardCache, namespace: str) -> None:
                 version = initial["metadata"]["resourceVersion"]
 
                 w = watch.Watch()
-                stream = w.stream(
-                    api.list_namespaced_custom_object,
-                    GROUP,
-                    VERSION,
-                    namespace,
-                    PLURAL,
-                    resource_version=version,
-                    timeout_seconds=300,
-                )
-                async with contextlib.aclosing(stream):
-                    async for event in stream:
+                # kubernetes_asyncio's Watch is the async iterator itself (no
+                # aclose); close it explicitly so the response is released.
+                try:
+                    async for event in w.stream(
+                        api.list_namespaced_custom_object,
+                        GROUP,
+                        VERSION,
+                        namespace,
+                        PLURAL,
+                        resource_version=version,
+                        timeout_seconds=300,
+                    ):
                         obj = event["object"]
                         if event["type"] == "DELETED":
                             cache.delete(obj["metadata"]["name"])
                         else:
                             cache.upsert(obj)
+                finally:
+                    await w.close()
             except asyncio.CancelledError:
                 raise
             except Exception:
