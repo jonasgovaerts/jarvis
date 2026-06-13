@@ -4,6 +4,7 @@ import { LayoutDashboard, ListChecks, LogOut, Menu, MessageSquare, Settings, X }
 import { Clock } from "./Clock";
 import { ConnectionOrb } from "./ConnectionOrb";
 import { useFeatures } from "../lib/queries";
+import { logout } from "../lib/oidc";
 
 const NAV_ITEMS = [
   { to: "/", label: "Board", icon: LayoutDashboard, end: true },
@@ -73,13 +74,14 @@ export function AppShell({ children }: { children: ReactNode }) {
           ))}
         </nav>
         <div className="px-3 pb-2">
-          <a
-            href="https://authentik.jonasg.be/flows/user/logout/"
-            className="flex items-center gap-3 rounded-md px-3 py-2 text-sm text-slate-400 transition-colors hover:bg-cyan-500/5 hover:text-slate-200"
+          <button
+            type="button"
+            onClick={() => void logout()}
+            className="flex w-full items-center gap-3 rounded-md px-3 py-2 text-left text-sm text-slate-400 transition-colors hover:bg-cyan-500/5 hover:text-slate-200"
           >
             <LogOut className="h-4 w-4 shrink-0" />
             <span>Logout</span>
-          </a>
+          </button>
         </div>
         <div className="flex items-center justify-between border-t border-cyan-500/15 p-4">
           <Clock />
