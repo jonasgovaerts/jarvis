@@ -4,7 +4,7 @@ import logging
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
-from sqlalchemy import select
+from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from gateway.api.deps import db_session, require_token
@@ -79,10 +79,13 @@ async def patch_session(
 
 @router.delete("/sessions/{session_id}", status_code=204)
 async def delete_session(session_id: str, session: AsyncSession = Depends(db_session)):
-    chat_session = await session.get(ChatSession, session_id)
-    if chat_session:
-        await session.delete(chat_session)
-        await session.commit()
+    # Delete messages explicitly: the live chat_messages table predates the
+    # ondelete=CASCADE on the FK (create_all never ALTERs), and there is no
+    # ORM relationship to cascade through, so deleting the session alone would
+    # hit a foreign-key violation.
+    await session.execute(delete(ChatMessage).where(ChatMessage.session_id == session_id))
+    await session.execute(delete(ChatSession).where(ChatSession.id == session_id))
+    await session.commit()
 
 
 @router.get("/sessions/{session_id}/messages")
