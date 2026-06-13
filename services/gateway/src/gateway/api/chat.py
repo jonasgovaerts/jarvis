@@ -8,7 +8,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from gateway.api.deps import db_session, require_token
-from gateway.chat.service import handle_message
+from gateway.chat.service import handle_message, name_session
 from gateway.state import state
 from jarvis_core.db import ChatMessage, ChatSession
 from jarvis_core.dto import ChatMessage as ChatMessageDTO
@@ -94,7 +94,8 @@ async def list_messages(
 async def post_message(
     session_id: str, body: MessageCreate, session: AsyncSession = Depends(db_session)
 ) -> ChatMessageDTO:
-    if await session.get(ChatSession, session_id) is None:
+    chat_session = await session.get(ChatSession, session_id)
+    if chat_session is None:
         raise HTTPException(status_code=404, detail="session not found")
 
     user_msg = ChatMessage(session_id=session_id, role="user", content=body.content)
@@ -106,7 +107,8 @@ async def post_message(
         .where(ChatMessage.session_id == session_id)
         .order_by(ChatMessage.created_at.asc())
     )
-    history = [{"role": m.role, "content": m.content} for m in rows.scalars()]
+    history_records = list(rows.scalars())
+    history = [{"role": m.role, "content": m.content} for m in history_records]
 
     try:
         outcome = await handle_message(history[:-1], body.content, session_id)
@@ -114,6 +116,13 @@ async def post_message(
     except Exception as exc:  # noqa: BLE001 - surface the failure in-channel
         log.exception("chat handling failed")
         reply, workflow_name = f"Something went wrong handling that: {exc}", ""
+
+    if chat_session.title == "New conversation" and len(history_records) < 2:
+        try:
+            new_title = await name_session(history)
+            chat_session.title = new_title
+        except Exception:
+            log.exception("session naming failed")
 
     assistant_msg = ChatMessage(
         session_id=session_id, role="assistant", content=reply, workflow_name=workflow_name
