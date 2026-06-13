@@ -25,7 +25,9 @@ spec:
             - name: NATS_URL
               value: nats://nats.jarvis-platform.svc:4222
             - name: DASHBOARD_URL
-              value: http://jarvis.local # adjust to your ingress/tailscale host
+              value: https://jarvis.homelab.jonasg.be
+            - name: ROUTING_CONFIG_PATH
+              value: /etc/jarvis/routing.yaml
             - name: DATABASE_URL
               valueFrom:
                 secretKeyRef:
@@ -37,6 +39,10 @@ spec:
                   name: discord-webhook
                   key: url
                   optional: true
+          volumeMounts:
+            - name: routing
+              mountPath: /etc/jarvis
+              readOnly: true
           readinessProbe:
             httpGet:
               path: /api/readyz
@@ -53,3 +59,7 @@ spec:
               memory: 96Mi
             limits:
               memory: 256Mi
+      volumes:
+        - name: routing
+          configMap:
+            name: notifier-routing

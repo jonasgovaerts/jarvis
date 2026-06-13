@@ -1,0 +1,20 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: notifier-routing
+  namespace: jarvis-system
+data:
+  routing.yaml: |
+    # Discord notifications: a new feature's PR appearing, the PR becoming
+    # mergeable (CI green — needs your approval), and failures. Everything
+    # else stays board-only (explicit empty rules document the choice).
+    rules:
+      - match: "jarvis.workflow.pr.opened"
+        channels: [discord]
+      - match: "jarvis.workflow.pr.ready"
+        channels: [discord]
+      - match: "jarvis.workflow.failed"
+        channels: [discord]
+      - match: "jarvis.>"
+        channels: []
+    default_channels: []
