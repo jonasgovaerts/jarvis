@@ -77,6 +77,12 @@ async def delete_repository(namespace: str, name: str) -> None:
         )
 
 
+async def delete_workitem(namespace: str, name: str) -> None:
+    async with client.ApiClient() as api_client:
+        api = client.CustomObjectsApi(api_client)
+        await api.delete_namespaced_custom_object(GROUP, VERSION, namespace, "workitems", name)
+
+
 async def create_feature_request_workitem(
     namespace: str,
     *,
