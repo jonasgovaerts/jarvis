@@ -16,7 +16,7 @@ images:
 # as env at startup). deploy-bump rewrites the agentImage literal with yq.
 configMapGenerator:
   - literals:
-      - agentImage=ghcr.io/jonasgovaerts/jarvis/agents:sha-34ee0fa
+      - agentImage=ghcr.io/jonasgovaerts/jarvis/agents:sha-51838c5
       - defaultModel=gemini
       - llmBaseUrl=http://litellm.jarvis-platform.svc:4000
     name: jarvis-defaults
