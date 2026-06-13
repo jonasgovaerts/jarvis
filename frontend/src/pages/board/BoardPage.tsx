@@ -20,7 +20,7 @@ export function BoardPage() {
   const activeCount = (items ?? []).length;
 
   return (
-    <div className="flex h-full flex-col gap-4 p-6">
+    <div className="flex h-full flex-col gap-4 p-4 md:p-6">
       <header className="flex items-center justify-between">
         <div>
           <h1 className="inline-flex items-center gap-2 font-mono text-sm font-semibold uppercase tracking-[0.3em] text-slate-200">
@@ -47,7 +47,7 @@ export function BoardPage() {
           hint="Connected repositories are quiet. New work items appear here in real time."
         />
       ) : (
-        <div className="flex min-h-0 flex-1 gap-3 overflow-x-auto pb-2">
+        <div className="flex min-h-0 flex-1 snap-x snap-mandatory gap-3 overflow-x-auto pb-2 md:snap-none">
           {COLUMNS.map((column) => (
             <BoardColumn key={column} title={column} items={grouped.byColumn.get(column) ?? []} />
           ))}
