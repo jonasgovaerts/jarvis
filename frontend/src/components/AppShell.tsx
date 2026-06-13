@@ -1,6 +1,14 @@
 import { useState, type ReactNode } from "react";
 import { NavLink } from "react-router";
-import { LayoutDashboard, ListChecks, LogOut, Menu, MessageSquare, Settings, X } from "lucide-react";
+import {
+  LayoutDashboard,
+  ListChecks,
+  LogOut,
+  Menu,
+  MessageSquare,
+  Settings,
+  X,
+} from "lucide-react";
 import { Clock } from "./Clock";
 import { ConnectionOrb } from "./ConnectionOrb";
 import { useFeatures } from "../lib/queries";
