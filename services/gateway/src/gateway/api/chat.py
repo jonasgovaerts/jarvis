@@ -77,6 +77,14 @@ async def patch_session(
     return _session_dto(chat_session)
 
 
+@router.delete("/sessions/{session_id}", status_code=204)
+async def delete_session(session_id: str, session: AsyncSession = Depends(db_session)):
+    chat_session = await session.get(ChatSession, session_id)
+    if chat_session:
+        await session.delete(chat_session)
+        await session.commit()
+
+
 @router.get("/sessions/{session_id}/messages")
 async def list_messages(
     session_id: str, session: AsyncSession = Depends(db_session)
