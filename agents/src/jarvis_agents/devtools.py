@@ -46,11 +46,48 @@ COMMAND_ALLOWLIST = {
 COMMAND_TIMEOUT = 300
 MAX_OUTPUT = 16_000
 
+# Lockfiles are generated artifacts; hand-editing them desyncs the lockfile
+# from its manifest and breaks strict installs (npm ci, uv sync --frozen).
+# The agent must change the manifest and regenerate via the package manager.
+GENERATED_LOCKFILES = {
+    "package-lock.json",
+    "npm-shrinkwrap.json",
+    "yarn.lock",
+    "pnpm-lock.yaml",
+    "uv.lock",
+    "poetry.lock",
+    "Cargo.lock",
+    "go.sum",
+}
+
+_REGEN_HINT = {
+    "package-lock.json": "edit package.json, then run_command `npm install`",
+    "npm-shrinkwrap.json": "edit package.json, then run_command `npm install`",
+    "yarn.lock": "edit package.json, then run_command `yarn install`",
+    "pnpm-lock.yaml": "edit package.json, then run_command `pnpm install`",
+    "uv.lock": "edit pyproject.toml, then run_command `uv lock`",
+    "poetry.lock": "edit pyproject.toml, then run_command `poetry lock`",
+    "Cargo.lock": "edit Cargo.toml, then run_command `cargo build`",
+    "go.sum": "edit go.mod, then run_command `go mod tidy`",
+}
+
+
+def _lockfile_guard(path: str) -> str | None:
+    name = Path(path).name
+    if name in GENERATED_LOCKFILES:
+        return (
+            f"ERROR: {name} is a generated lockfile — never edit it by hand. "
+            f"Instead: {_REGEN_HINT[name]}."
+        )
+    return None
+
 
 class RepoEditor(RepoReader):
     def write_file(self, path: str, content: str) -> str:
         """Create or overwrite a file with the given content."""
         toollog.info("write_file %s (%d bytes)", path, len(content))
+        if guard := _lockfile_guard(path):
+            return guard
         target = self._resolve(path)
         target.parent.mkdir(parents=True, exist_ok=True)
         target.write_text(content)
@@ -59,6 +96,8 @@ class RepoEditor(RepoReader):
     def edit_file(self, path: str, old_string: str, new_string: str) -> str:
         """Replace an exact, unique occurrence of old_string with new_string."""
         toollog.info("edit_file %s", path)
+        if guard := _lockfile_guard(path):
+            return guard
         target = self._resolve(path)
         if not target.is_file():
             return f"ERROR: {path} is not a file"

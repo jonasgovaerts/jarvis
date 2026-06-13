@@ -15,6 +15,7 @@ from pathlib import Path
 
 from pydantic import BaseModel, Field
 from pydantic_ai import Agent
+from pydantic_ai.exceptions import UsageLimitExceeded
 from pydantic_ai.usage import UsageLimits
 
 from jarvis_agents import verify
@@ -26,9 +27,9 @@ from jarvis_core.llm import build_model
 
 log = logging.getLogger(__name__)
 
-MAX_REQUESTS = 60
+MAX_REQUESTS = 150
 MAX_FIX_ROUNDS = 3
-FIX_ROUND_REQUESTS = 25
+FIX_ROUND_REQUESTS = 40
 
 
 class DevelopmentSummary(BaseModel):
@@ -119,9 +120,7 @@ async def _develop(ctx: AgentContext) -> AgentResultEnvelope:
     prompt += f"\n\n## Repository layout\n```\n{editor.tree_summary()}\n```"
 
     log.info("starting implementation loop (request budget %d)", MAX_REQUESTS)
-    result = await agent.run(prompt, usage_limits=UsageLimits(request_limit=MAX_REQUESTS))
-    log.info("model loop finished after %d requests", result.usage().requests)
-    summary = result.output
+    result, summary = await _run_capped(agent, prompt, None, MAX_REQUESTS, ctx)
 
     if not gitx.run_git(["status", "--porcelain"], cwd=workdir).strip():
         raise AgentFailure(
@@ -147,12 +146,10 @@ async def _develop(ctx: AgentContext) -> AgentResultEnvelope:
             fix_round + 1,
             len(failures),
         )
-        result = await agent.run(
-            verify.format_feedback(failures),
-            message_history=result.all_messages(),
-            usage_limits=UsageLimits(request_limit=FIX_ROUND_REQUESTS),
+        history = result.all_messages() if result is not None else None
+        result, summary = await _run_capped(
+            agent, verify.format_feedback(failures), history, FIX_ROUND_REQUESTS, ctx
         )
-        summary = result.output
 
     gitx.run_git(["add", "-A"], cwd=workdir)
     gitx.run_git(["commit", "-m", summary.commit_message], cwd=workdir)
@@ -186,6 +183,43 @@ async def _develop(ctx: AgentContext) -> AgentResultEnvelope:
             "prNumber": pr.number,
             "headSha": head_sha,
         },
+    )
+
+
+async def _run_capped(agent, prompt, history, limit, ctx):
+    """Run the model loop with a request budget.
+
+    Budget exhaustion must not throw away work: if the loop hit the cap it has
+    usually already produced changes on disk. We synthesize a fallback summary
+    so the change is committed and the PR opened — the verification gate and
+    CI then judge correctness, and the operator's fix loop can continue. The
+    no-diff case is caught by the caller (NoChangesProduced).
+    """
+    try:
+        result = await agent.run(
+            prompt, message_history=history, usage_limits=UsageLimits(request_limit=limit)
+        )
+        log.info("model loop finished after %d requests", result.usage().requests)
+        return result, result.output
+    except UsageLimitExceeded:
+        log.warning("request budget (%d) exhausted — proceeding with changes so far", limit)
+        return None, _fallback_summary(ctx)
+
+
+def _fallback_summary(ctx: AgentContext) -> DevelopmentSummary:
+    source = ctx.source
+    if source["type"] == "Issue":
+        title = f"Address issue #{source['issue']['number']}: {source['issue']['title']}"
+    else:
+        title = source["featureRequest"]["description"].splitlines()[0][:72]
+    return DevelopmentSummary(
+        changes_description=(
+            "⚠️ The implementation budget was exhausted before the agent finished; "
+            "this is a partial change. Review carefully — it may be incomplete."
+        ),
+        commit_message=f"wip: {title}"[:72],
+        pr_title=title,
+        tests_run="",
     )
 
 
