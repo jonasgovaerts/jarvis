@@ -6,4 +6,4 @@ resources:
 images:
 - name: ghcr.io/jonasgovaerts/jarvis/gateway
   newName: ghcr.io/jonasgovaerts/jarvis/gateway
-  newTag: sha-ed60f3d
+  newTag: sha-24dcc9f
