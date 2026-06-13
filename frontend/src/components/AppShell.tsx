@@ -1,6 +1,6 @@
 import { useState, type ReactNode } from "react";
 import { NavLink } from "react-router";
-import { LayoutDashboard, ListChecks, Menu, MessageSquare, Settings, X } from "lucide-react";
+import { LayoutDashboard, ListChecks, LogOut, Menu, MessageSquare, Settings, X } from "lucide-react";
 import { Clock } from "./Clock";
 import { ConnectionOrb } from "./ConnectionOrb";
 import { useFeatures } from "../lib/queries";
@@ -72,6 +72,15 @@ export function AppShell({ children }: { children: ReactNode }) {
             </NavLink>
           ))}
         </nav>
+        <div className="px-3 pb-2">
+          <a
+            href="https://authentik.jonasg.be/flows/user/logout/"
+            className="flex items-center gap-3 rounded-md px-3 py-2 text-sm text-slate-400 transition-colors hover:bg-cyan-500/5 hover:text-slate-200"
+          >
+            <LogOut className="h-4 w-4 shrink-0" />
+            <span>Logout</span>
+          </a>
+        </div>
         <div className="flex items-center justify-between border-t border-cyan-500/15 p-4">
           <Clock />
           <ConnectionOrb />
