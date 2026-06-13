@@ -3,7 +3,7 @@
 from pydantic_ai.messages import ModelResponse, TextPart, ToolCallPart, ToolReturnPart
 from pydantic_ai.models.function import AgentInfo, FunctionModel
 
-from gateway.chat.service import ChatDeps, build_chat_agent
+from gateway.chat.service import ChatDeps, build_chat_agent, name_session
 
 
 class StubOps:
@@ -59,3 +59,12 @@ async def test_unknown_repo_forces_clarification():
     assert deps.created_workflow == ""
     assert stub.calls == []
     assert "Which repository" in result.output
+
+
+async def test_name_session():
+    def fn(messages, info: AgentInfo) -> ModelResponse:
+        return ModelResponse(parts=[TextPart("A new title")])
+
+    model = FunctionModel(fn)
+    title = await name_session([{"role": "user", "content": "hello"}], model=model)
+    assert title == "A new title"

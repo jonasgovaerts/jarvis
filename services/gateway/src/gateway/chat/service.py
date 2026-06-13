@@ -90,6 +90,19 @@ def build_chat_agent() -> Agent:
     return agent
 
 
+async def name_session(history: list[dict], model=None) -> str:
+    """Choose a short title for a conversation."""
+    llm = model or build_model(settings().chat_model)
+    agent = Agent(
+        llm,
+        output_type=str,
+        instructions="You are a conversation summarizer. Distill the user's request from this brief exchange into a 3-5 word title. Omit 'Jarvis' and introductory pleasantries.",
+    )
+    prompt = _flatten_history(history)
+    result = await agent.run(prompt)
+    return result.output.strip().strip("'\"")
+
+
 async def handle_message(history: list[dict], content: str, session_id: str) -> ChatOutcome:
     cfg = settings()
     repos = (
