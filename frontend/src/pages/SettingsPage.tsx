@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from "react";
+import { useState, type FormEvent, useEffect } from "react";
 import { KeyRound, Plus, Save, Trash2 } from "lucide-react";
 import { useAddRepo, useDeleteRepo, useRepos } from "../lib/queries";
 import { setToken, useAuthState } from "../lib/token";
@@ -23,6 +23,110 @@ function SectionCard({ title, children }: { title: string; children: React.React
       </h2>
       <div className="mt-4">{children}</div>
     </section>
+  );
+}
+
+function urlBase64ToUint8Array(base64String: string) {
+  const padding = "=".repeat((4 - (base64String.length % 4)) % 4);
+  const base64 = (base64String + padding).replace(/-/g, "+").replace(/_/g, "/");
+
+  const rawData = window.atob(base64);
+  const outputArray = new Uint8Array(rawData.length);
+
+  for (let i = 0; i < rawData.length; ++i) {
+    outputArray[i] = rawData.charCodeAt(i);
+  }
+  return outputArray;
+}
+
+function NotificationsSection() {
+  const [permission, setPermission] = useState<NotificationPermission>("default");
+
+  useEffect(() => {
+    if ("Notification" in window) {
+      setPermission(Notification.permission);
+    }
+  }, []);
+
+  const subscribeToPush = async () => {
+    if (!("serviceWorker" in navigator)) return;
+    try {
+      const registration = await navigator.serviceWorker.ready;
+      let subscription = await registration.pushManager.getSubscription();
+
+      if (subscription) {
+        console.log("Already subscribed");
+        return;
+      }
+
+      // THIS IS A PLACEHOLDER KEY. It should be replaced with a key generated on the server.
+      const vapidPublicKey = "BCGVH833qT0g_m_i4N-wz3c_3Ba2L3y0-LL2HkIMi0w1_T-lG6p3-gNq8GgV2v4fC_s";
+      const applicationServerKey = urlBase64ToUint8Array(vapidPublicKey);
+
+      subscription = await registration.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey,
+      });
+
+      console.log("New subscription: ", subscription);
+      // Here you would send the subscription to your server.
+      // Example: await api.post("/subscribe", subscription);
+    } catch (e) {
+      if (e instanceof Error && e.name === "NotAllowedError") {
+        console.warn("Notification permission denied.");
+        setPermission("denied");
+      } else {
+        console.error("Failed to subscribe to push notifications", e);
+      }
+    }
+  };
+
+  const requestPermission = async () => {
+    if (!("Notification" in window)) {
+      alert("This browser does not support desktop notifications.");
+      return;
+    }
+
+    const status = await Notification.requestPermission();
+    setPermission(status);
+
+    if (status === "granted") {
+      await subscribeToPush();
+    }
+  };
+
+  if (!("Notification" in window) || !("serviceWorker" in navigator)) {
+    return (
+      <p className="text-sm text-slate-500">
+        Push notifications are not supported in this browser.
+      </p>
+    );
+  }
+
+  return (
+    <div>
+      {permission === "granted" ? (
+        <p className="text-sm text-slate-400">Push notifications are enabled.</p>
+      ) : (
+        <div className="flex items-center gap-4">
+          <p className="text-sm text-slate-400">
+            Enable push notifications to receive updates.
+          </p>
+          <button
+            onClick={requestPermission}
+            disabled={permission === "denied"}
+            className="inline-flex items-center justify-center gap-1.5 rounded-md bg-accent px-3 py-2 text-xs font-semibold text-base shadow-glow transition hover:bg-cyan-300 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            Enable notifications
+          </button>
+        </div>
+      )}
+      {permission === "denied" && (
+        <p className="mt-2 text-xs text-slate-500">
+          You have blocked notifications. You'll need to change this in your browser settings.
+        </p>
+      )}
+    </div>
   );
 }
 
@@ -238,6 +342,10 @@ export function SettingsPage() {
 
       <SectionCard title="Managed repositories">
         <ReposSection />
+      </SectionCard>
+
+      <SectionCard title="Notifications">
+        <NotificationsSection />
       </SectionCard>
 
       <SectionCard title="Access token">
