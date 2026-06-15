@@ -27,9 +27,9 @@ from jarvis_core.llm import build_model
 
 log = logging.getLogger(__name__)
 
-MAX_REQUESTS = 150
+MAX_REQUESTS = 250
 MAX_FIX_ROUNDS = 3
-FIX_ROUND_REQUESTS = 40
+FIX_ROUND_REQUESTS = 60
 
 
 class DevelopmentSummary(BaseModel):
