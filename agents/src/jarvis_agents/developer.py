@@ -151,7 +151,7 @@ async def _develop(ctx: AgentContext) -> AgentResultEnvelope:
             agent, verify.format_feedback(failures), history, FIX_ROUND_REQUESTS, ctx
         )
 
-    gitx.run_git(["add", "-A"], cwd=workdir)
+    gitx.stage_all(workdir)
     gitx.run_git(["commit", "-m", summary.commit_message], cwd=workdir)
     push_args = ["push", "-u", "origin", branch]
     if replace_remote:

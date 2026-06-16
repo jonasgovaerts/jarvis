@@ -28,6 +28,43 @@ def _askpass_env(token: str) -> tuple[dict[str, str], str]:
     return env, path
 
 
+# Build artifacts / dependency trees a verification run (npm ci, builds,
+# bytecode) drops into the working tree. Never commit these — target repos may
+# lack a .gitignore, and a plain `git add -A` once committed node_modules+dist
+# as a 359k-line PR with zero feature code in it.
+GENERATED_DIRS = (
+    "node_modules",
+    "dist",
+    "build",
+    ".next",
+    "out",
+    "coverage",
+    "__pycache__",
+    ".venv",
+    "venv",
+    ".pytest_cache",
+    ".ruff_cache",
+    ".mypy_cache",
+    ".gradle",
+    "target",
+)
+
+
+def stage_all(cwd: Path, token: str = "") -> None:
+    """`git add -A` excluding generated/dependency directories (anywhere in the
+    tree) via pathspec, so verification byproducts never get committed. Also
+    untracks any that a prior attempt already committed."""
+    excludes = [f":(glob,exclude)**/{name}/**" for name in GENERATED_DIRS]
+    # Drop any generated paths a previous attempt committed (no-op otherwise).
+    for name in GENERATED_DIRS:
+        run_git(
+            ["rm", "-r", "--cached", "--ignore-unmatch", "-q", f":(glob)**/{name}/**"],
+            cwd=cwd,
+            token=token,
+        )
+    run_git(["add", "-A", "--", ".", *excludes], cwd=cwd, token=token)
+
+
 def run_git(args: list[str], cwd: Path | None = None, token: str = "") -> str:
     log.info("git %s", " ".join(args[:6]))
     env, askpass = _askpass_env(token) if token else (dict(os.environ), "")
