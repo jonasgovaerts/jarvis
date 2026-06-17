@@ -112,15 +112,19 @@ def detect_checks(root: Path) -> list[tuple[Path, list[str]]]:
     return checks
 
 
-def run_checks(root: Path) -> list[CheckFailure]:
+def _label(root: Path, workdir: Path, argv: list[str]) -> str:
+    rel = workdir.relative_to(root)
+    return " ".join(argv) if str(rel) == "." else f"{rel}: {' '.join(argv)}"
+
+
+def _run_detected(root: Path) -> list[CheckFailure]:
     """Run every detected check in its own directory; returns failures."""
     failures: list[CheckFailure] = []
     broken: set[Path] = set()  # dirs whose npm ci failed → skip their scripts
     for workdir, argv in detect_checks(root):
         if workdir in broken:
             continue
-        rel = workdir.relative_to(root)
-        pretty = " ".join(argv) if str(rel) == "." else f"{rel}: {' '.join(argv)}"
+        pretty = _label(root, workdir, argv)
         log.info("verify: %s", pretty)
         try:
             result = subprocess.run(
@@ -143,6 +147,67 @@ def run_checks(root: Path) -> list[CheckFailure]:
         if argv[:2] == ["npm", "ci"]:
             broken.add(workdir)  # its scripts would just fail for missing deps
     return failures
+
+
+def _baseline_failures(root: Path, baseline_ref: str, suspects: set[str]) -> set[str]:
+    """Which of `suspects` were ALREADY failing at baseline_ref (pre-existing,
+    not the agent's fault). Uses a throwaway git worktree at the base commit so
+    the agent's uncommitted changes aren't seen."""
+    import tempfile
+
+    wt = Path(tempfile.mkdtemp(prefix="jarvis-baseline-"))
+    try:
+        add = subprocess.run(
+            ["git", "worktree", "add", "--detach", str(wt), baseline_ref],
+            cwd=root,
+            capture_output=True,
+            text=True,
+            timeout=120,
+        )
+        if add.returncode != 0:
+            log.warning("baseline worktree failed (%s); not classifying", add.stderr.strip()[:200])
+            return set()
+        failing: set[str] = set()
+        for workdir, argv in detect_checks(wt):
+            label = _label(wt, workdir, argv)
+            is_npm_ci = argv[:2] == ["npm", "ci"]
+            # Only re-run the suspect checks (plus npm ci to provision deps).
+            if label not in suspects and not is_npm_ci:
+                continue
+            try:
+                r = subprocess.run(
+                    argv, cwd=workdir, capture_output=True, text=True, timeout=CHECK_TIMEOUT
+                )
+            except (subprocess.TimeoutExpired, FileNotFoundError):
+                continue
+            if r.returncode != 0 and not is_npm_ci:
+                failing.add(label)
+        return failing
+    finally:
+        subprocess.run(
+            ["git", "worktree", "remove", "--force", str(wt)],
+            cwd=root,
+            capture_output=True,
+        )
+
+
+def run_checks(root: Path, baseline_ref: str = "") -> list[CheckFailure]:
+    """Run the repo's checks; return failures the agent must fix.
+
+    With baseline_ref set, failures that were ALREADY red at that ref (the PR's
+    base — e.g. a repo whose lint/build was broken before the agent touched it)
+    are not held against the agent: it must not make things worse, but it isn't
+    forced to fix pre-existing breakage (which sent it on unrelated 'fix the
+    pipeline' sprees)."""
+    failures = _run_detected(root)
+    if not failures or not baseline_ref:
+        return failures
+    pre_existing = _baseline_failures(root, baseline_ref, {f.command for f in failures})
+    regressions = [f for f in failures if f.command not in pre_existing]
+    for f in failures:
+        if f.command in pre_existing:
+            log.info("verify: %s was already failing at base — not blocking", f.command)
+    return regressions
 
 
 def format_feedback(failures: list[CheckFailure]) -> str:

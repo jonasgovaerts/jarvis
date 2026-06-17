@@ -131,8 +131,14 @@ async def _develop(ctx: AgentContext) -> AgentResultEnvelope:
 
     # Hard gate: the repo's own lint/tests must pass before anything is
     # pushed. Failures go back into the model loop, bounded by MAX_FIX_ROUNDS.
+    # Baseline = the PR's base branch, so checks already red there (pre-existing
+    # repo breakage) aren't blamed on the agent.
+    try:
+        base_ref = gitx.run_git(["rev-parse", "--abbrev-ref", "origin/HEAD"], cwd=workdir).strip()
+    except AgentFailure:
+        base_ref = ""
     for fix_round in range(MAX_FIX_ROUNDS + 1):
-        failures = await asyncio.to_thread(verify.run_checks, workdir)
+        failures = await asyncio.to_thread(verify.run_checks, workdir, base_ref)
         if not failures:
             break
         if fix_round == MAX_FIX_ROUNDS:

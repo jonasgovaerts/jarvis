@@ -139,3 +139,48 @@ def test_feedback_format_mentions_command_and_output():
     assert "pytest -q" in text
     assert "assert 1 == 2" in text
     assert "do not delete or weaken" in text
+
+
+def _git(cwd, *args):
+    import subprocess
+
+    return subprocess.run(["git", *args], cwd=cwd, capture_output=True, text=True, check=True)
+
+
+def test_baseline_drops_preexisting_failures(tmp_path, monkeypatch):
+    """A check red at the base ref is pre-existing → not blocking; a check that
+    only goes red on the branch → a regression the agent must fix. Real git
+    worktree, real check commands (no subprocess mocking)."""
+    repo = tmp_path
+    _git(repo, "init", "-q")
+    _git(repo, "config", "user.email", "t@t")
+    _git(repo, "config", "user.name", "t")
+    (repo / "f.txt").write_text("base\n")
+    _git(repo, "add", "-A")
+    _git(repo, "commit", "-q", "-m", "base")
+    _git(repo, "update-ref", "refs/remotes/origin/HEAD", "HEAD")
+
+    # check A always fails (pre-existing, red at base and branch).
+    # check B fails only when regression.flag exists — absent at base (it's
+    # uncommitted), present in the branch working tree → a real regression.
+    monkeypatch.setattr(
+        verify,
+        "detect_checks",
+        lambda root: [
+            (root, ["sh", "-c", "exit 1"]),
+            (root, ["sh", "-c", "test ! -f regression.flag"]),
+        ],
+    )
+    (repo / "regression.flag").write_text("x\n")  # uncommitted → only in branch tree
+
+    failures = verify.run_checks(repo, baseline_ref="origin/HEAD")
+    cmds = {f.command for f in failures}
+    assert "sh -c test ! -f regression.flag" in cmds  # regression — blocks
+    assert "sh -c exit 1" not in cmds  # pre-existing — dropped
+
+
+def test_no_baseline_ref_keeps_all_failures(tmp_path, monkeypatch):
+    monkeypatch.setattr(verify, "detect_checks", lambda root: [(root, ["sh", "-c", "exit 1"])])
+    # Without a baseline ref, every failure blocks (back-compat behaviour).
+    failures = verify.run_checks(tmp_path)
+    assert len(failures) == 1

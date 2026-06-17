@@ -32,10 +32,13 @@ COPY --from=node:22-bookworm-slim /usr/local/bin/node /usr/local/bin/node
 COPY --from=node:22-bookworm-slim /usr/local/lib/node_modules /usr/local/lib/node_modules
 RUN ln -s ../lib/node_modules/npm/bin/npm-cli.js /usr/local/bin/npm \
     && ln -s ../lib/node_modules/npm/bin/npx-cli.js /usr/local/bin/npx
-# Go toolchain (matches operator/go.mod) for go build/vet in the gate.
+# Go toolchain baseline for go build/vet in the gate. GOTOOLCHAIN=auto lets go
+# fetch the exact version a target repo's go.mod requires (some need newer than
+# this baseline) instead of failing — which previously made the agent "fix" the
+# build by downgrading the repo's go.mod.
 COPY --from=golang:1.25-bookworm /usr/local/go /usr/local/go
 ENV PATH="/usr/local/go/bin:$PATH" \
-    GOTOOLCHAIN=local \
+    GOTOOLCHAIN=auto \
     GOFLAGS=-buildvcs=false
 RUN groupadd -r jarvis && useradd -r -m -g jarvis jarvis
 WORKDIR /work
